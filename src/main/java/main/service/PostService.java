@@ -58,27 +58,21 @@ public class PostService {
     private final SettingsService settingsService;
 
     public PostResponse getPosts(int offset, int limit, String mode) {
-        Page<Post> postPage;
         int pageOffset = offset / limit;
         switch (mode) {
             case (SORT_POST_TYPE_BY_DATE_PUBLICATION_DES):
-                postPage = postRepository.findAll(PageRequest.of(pageOffset, limit, Sort.by("time").descending()));
-                break;
+                return getPostResponse(postRepository
+                        .findAll(PageRequest.of(pageOffset, limit, Sort.by("time").descending())));
             case (SORT_POST_TYPE_BY_DATE_PUBLICATION_ASC):
-                postPage = postRepository.findAll(PageRequest.of(pageOffset, limit, Sort.by("time").ascending()));
-                break;
+                return getPostResponse(postRepository
+                        .findAll(PageRequest.of(pageOffset, limit, Sort.by("time").ascending())));
             case (SORT_POST_TYPE_BY_COMMENT_DES):
-                postPage = postRepository.findAllSortByCountCommentDesc(PageRequest.of(pageOffset, limit));
-                break;
+                return getPostResponse(postRepository.findAllSortByCountCommentDesc(PageRequest.of(pageOffset, limit)));
             case (SORT_POST_TYPE_BY_LIKE_DES):
-                postPage = postRepository.findAllSortByCountLikeDesc(PageRequest.of(pageOffset, limit));
-                break;
+                return getPostResponse(postRepository.findAllSortByCountLikeDesc(PageRequest.of(pageOffset, limit)));
             default:
                 throw new IllegalArgumentException("Invalid value of the 'mode' argument in the 'posts' request");
         }
-        List<PostDTO> postDTOS = new ArrayList<>();
-        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
-        return new PostResponse(postPage.getTotalElements(), postDTOS);
     }
 
     public PostResponse getSearchPosts(int offset, int limit, String query) {
@@ -87,11 +81,8 @@ public class PostService {
             return getPosts(offset, limit, SORT_POST_TYPE_BY_DATE_PUBLICATION_DES);
         }
         int pageOffset = offset / limit;
-        Page<Post> postPage = postRepository.findAllByQuery(PageRequest
-                .of(pageOffset, limit, Sort.by("time").descending()), queryTrim);
-        List<PostDTO> postDTOS = new ArrayList<>();
-        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
-        return new PostResponse(postPage.getTotalElements(), postDTOS);
+        return getPostResponse(postRepository.findAllByQuery(PageRequest
+                .of(pageOffset, limit, Sort.by("time").descending()), queryTrim));
     }
 
     public PostResponse getPostsByDate(int offset, int limit, String date) throws ParseException {
@@ -103,11 +94,19 @@ public class PostService {
         Date searchDate = formatDate.parse(dateTrim);
 
         int pageOffset = offset / limit;
-        Page<Post> postPage = postRepository.findAllByDate(PageRequest
-                .of(pageOffset, limit, Sort.by("time").descending()), searchDate);
-        List<PostDTO> postDTOS = new ArrayList<>();
-        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
-        return new PostResponse(postPage.getTotalElements(), postDTOS);
+        return getPostResponse(postRepository.findAllByDate(PageRequest
+                .of(pageOffset, limit, Sort.by("time").descending()), searchDate));
+    }
+
+    public PostResponse getPostsByTag(int offset, int limit, String tag) {
+        String tagTrim = tag.trim();
+        if (tagTrim.isEmpty()) {
+            return new PostResponse(0, new ArrayList<>());
+        }
+
+        int pageOffset = offset / limit;
+        return getPostResponse(postRepository.findAllByTag(PageRequest
+                .of(pageOffset, limit, Sort.by("time").descending()), tagTrim));
     }
 
     public AddPostResponse addPost(AddPostRequest postRequest) {
@@ -146,6 +145,12 @@ public class PostService {
         Post post = savePostToDB(postRequest, user, moderationStatusType);
         savedTagList.forEach(tag -> saveTagPostLinkToDB(post.getId(), tag.getId()));
         return new AddPostResponse(true, null);
+    }
+
+    private PostResponse getPostResponse(Page<Post> postPage){
+        List<PostDTO> postDTOS = new ArrayList<>();
+        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
+        return new PostResponse(postPage.getTotalElements(), postDTOS);
     }
 
     private PostDTO postToPostDTO(Post post) {
