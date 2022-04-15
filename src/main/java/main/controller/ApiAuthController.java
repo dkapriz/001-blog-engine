@@ -27,7 +27,7 @@ public class ApiAuthController {
     }
 
     @PostMapping("/login")
-    private ResponseEntity<LoginResponse> login(LoginRequest loginRequest){
+    private ResponseEntity<LoginResponse> login(LoginRequest loginRequest) {
         return new ResponseEntity<>(loginService.getResponse(loginRequest), HttpStatus.OK);
     }
 }

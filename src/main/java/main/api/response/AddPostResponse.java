@@ -17,7 +17,7 @@ public class AddPostResponse {
     @JsonProperty("errors")
     private ErrorPostDTO error;
 
-    public AddPostResponse(){
+    public AddPostResponse() {
         error = null;
     }
 }

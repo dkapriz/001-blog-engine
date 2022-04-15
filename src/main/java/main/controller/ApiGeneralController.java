@@ -1,16 +1,17 @@
 package main.controller;
 
 import lombok.AllArgsConstructor;
-import main.api.request.SettingsRequest;
 import main.api.response.InitResponse;
 import main.api.response.SettingsResponse;
 import main.api.response.TagResponse;
-import main.model.GlobalSetting;
 import main.service.SettingsService;
 import main.service.TagService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
@@ -32,7 +33,7 @@ public class ApiGeneralController {
     }
 
     @GetMapping("/tag")
-    private ResponseEntity<TagResponse> tags(@RequestParam String query) {
+    private ResponseEntity<TagResponse> tags(@RequestParam(defaultValue = "") String query) {
         return new ResponseEntity<>(tagService.getTags(query), HttpStatus.OK);
     }
 }

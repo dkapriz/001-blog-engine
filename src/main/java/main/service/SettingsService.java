@@ -42,10 +42,10 @@ public class SettingsService {
         return settingsResponse;
     }
 
-    public boolean getGlobalSettingByCode(String code){
+    public boolean getGlobalSettingByCode(String code) {
         Iterable<GlobalSetting> globalSettings = globalSettingRepository.findAll();
-        for(GlobalSetting globalSetting : globalSettings){
-            if (globalSetting.getCode().equals(code)){
+        for (GlobalSetting globalSetting : globalSettings) {
+            if (globalSetting.getCode().equals(code)) {
                 return stringToBoolean(globalSetting.getValue());
             }
         }

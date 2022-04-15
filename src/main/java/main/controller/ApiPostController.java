@@ -25,7 +25,7 @@ public class ApiPostController {
     }
 
     @PostMapping("/post")
-    private ResponseEntity<AddPostResponse> addPost(@RequestBody AddPostRequest addPostRequest){
+    private ResponseEntity<AddPostResponse> addPost(@RequestBody AddPostRequest addPostRequest) {
         return new ResponseEntity<>(postService.addPost(addPostRequest), HttpStatus.OK);
     }
 }
