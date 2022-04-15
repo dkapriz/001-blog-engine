@@ -8,6 +8,9 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Calendar;
+import java.util.List;
+
 @Repository
 public interface PostRepository extends CrudRepository<Post, Integer> {
 
@@ -41,4 +44,19 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "AND p.time <= CURRENT_TIMESTAMP() " +
             "AND UPPER(p.title) LIKE CONCAT('%',UPPER(:query),'%')")
     Page<Post> findAllByQuery(Pageable pageable, @Param("query") String query);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "LEFT JOIN User u ON u.id = p.user " +
+            "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND YEAR(p.time) = YEAR(:year) " +
+            "ORDER BY p.time")
+    List<Post> findAllByYear(@Param("year") Calendar year);
+
+    @Query(value = "SELECT YEAR(p.time) FROM Post p " +
+            "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "GROUP BY YEAR(p.time) " +
+            "ORDER BY YEAR(p.time)")
+    String[] findAllYearValue();
 }
