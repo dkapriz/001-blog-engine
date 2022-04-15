@@ -8,7 +8,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 @Repository
@@ -49,9 +49,16 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "LEFT JOIN User u ON u.id = p.user " +
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
             "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND DATE(p.time) = :date")
+    Page<Post> findAllByDate(Pageable pageable, @Param("date") Date date);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "LEFT JOIN User u ON u.id = p.user " +
+            "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
             "AND YEAR(p.time) = YEAR(:year) " +
             "ORDER BY p.time")
-    List<Post> findAllByYear(@Param("year") Calendar year);
+    List<Post> findAllByYear(@Param("year") Date year);
 
     @Query(value = "SELECT YEAR(p.time) FROM Post p " +
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +

@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.ParseException;
+
 @RestController
 @RequestMapping("/api/post")
 @AllArgsConstructor
@@ -30,6 +32,14 @@ public class ApiPostController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "") String query) {
         return new ResponseEntity<>(postService.getSearchPosts(offset, limit, query), HttpStatus.OK);
+    }
+
+    @GetMapping("/byDate")
+    private ResponseEntity<PostResponse> postByDate(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "") String date) throws ParseException {
+        return new ResponseEntity<>(postService.getPostsByDate(offset, limit, date), HttpStatus.OK);
     }
 
     @PostMapping()

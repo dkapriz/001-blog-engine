@@ -22,11 +22,11 @@ public class CalendarService {
 
     public CalendarResponse getCalendar(String year) {
         Calendar searchYear = Calendar.getInstance(TimeZone.getTimeZone(TIME_ZONE));
-        if (!year.isEmpty()) {
+        if (!year.trim().isEmpty()) {
             searchYear.set(Calendar.YEAR, Integer.parseInt(year));
         }
         String[] allYearsPost = postRepository.findAllYearValue();
-        List<Post> postBySearchYear = postRepository.findAllByYear(searchYear);
+        List<Post> postBySearchYear = postRepository.findAllByYear(searchYear.getTime());
 
         SimpleDateFormat formatDate = new SimpleDateFormat(PATTERN_DATE_FORMAT);
         Map<String, Integer> dateCount = new HashMap<>();

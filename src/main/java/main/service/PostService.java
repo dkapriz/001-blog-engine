@@ -18,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
@@ -42,6 +44,7 @@ public class PostService {
     private static final String ERROR_ADD_POST_RESPONSE_MES_EMPTY_TITLE = "Заголовок не установлен";
     private static final String ERROR_ADD_POST_RESPONSE_MES_EMPTY_TEXT = "Текст публикации пустой";
     private static final String TIME_ZONE = "UTC";
+    private static final String PATTERN_DATE_FORMAT = "yyyy-MM-dd";
 
     @Autowired
     private final PostRepository postRepository;
@@ -78,14 +81,30 @@ public class PostService {
         return new PostResponse(postPage.getTotalElements(), postDTOS);
     }
 
-    public PostResponse getSearchPosts(int offset, int limit, String query){
+    public PostResponse getSearchPosts(int offset, int limit, String query) {
         String queryTrim = query.trim();
-        if(queryTrim.isEmpty()){
+        if (queryTrim.isEmpty()) {
             return getPosts(offset, limit, SORT_POST_TYPE_BY_DATE_PUBLICATION_DES);
         }
         int pageOffset = offset / limit;
         Page<Post> postPage = postRepository.findAllByQuery(PageRequest
                 .of(pageOffset, limit, Sort.by("time").descending()), queryTrim);
+        List<PostDTO> postDTOS = new ArrayList<>();
+        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
+        return new PostResponse(postPage.getTotalElements(), postDTOS);
+    }
+
+    public PostResponse getPostsByDate(int offset, int limit, String date) throws ParseException {
+        String dateTrim = date.trim();
+        if (dateTrim.isEmpty()) {
+            return new PostResponse(0, new ArrayList<>());
+        }
+        SimpleDateFormat formatDate = new SimpleDateFormat(PATTERN_DATE_FORMAT);
+        Date searchDate = formatDate.parse(dateTrim);
+
+        int pageOffset = offset / limit;
+        Page<Post> postPage = postRepository.findAllByDate(PageRequest
+                .of(pageOffset, limit, Sort.by("time").descending()), searchDate);
         List<PostDTO> postDTOS = new ArrayList<>();
         postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
         return new PostResponse(postPage.getTotalElements(), postDTOS);
