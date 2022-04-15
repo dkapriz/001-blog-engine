@@ -78,6 +78,19 @@ public class PostService {
         return new PostResponse(postPage.getTotalElements(), postDTOS);
     }
 
+    public PostResponse getSearchPosts(int offset, int limit, String query){
+        String queryTrim = query.trim();
+        if(queryTrim.isEmpty()){
+            return getPosts(offset, limit, SORT_POST_TYPE_BY_DATE_PUBLICATION_DES);
+        }
+        int pageOffset = offset / limit;
+        Page<Post> postPage = postRepository.findAllByQuery(PageRequest
+                .of(pageOffset, limit, Sort.by("time").descending()), queryTrim);
+        List<PostDTO> postDTOS = new ArrayList<>();
+        postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
+        return new PostResponse(postPage.getTotalElements(), postDTOS);
+    }
+
     public AddPostResponse addPost(AddPostRequest postRequest) {
 
         // TODO: добавить проверку авторизации

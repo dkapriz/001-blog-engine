@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -33,4 +34,11 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "GROUP BY p.id " +
             "ORDER BY COUNT(pv) DESC")
     Page<Post> findAllSortByCountLikeDesc(Pageable pageable);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "LEFT JOIN User u ON u.id = p.user " +
+            "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND UPPER(p.title) LIKE CONCAT('%',UPPER(:query),'%')")
+    Page<Post> findAllByQuery(Pageable pageable, @Param("query") String query);
 }

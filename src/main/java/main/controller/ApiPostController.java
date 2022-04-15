@@ -10,13 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/post")
 @AllArgsConstructor
 public class ApiPostController {
 
     private final PostService postService;
 
-    @GetMapping("/post")
+    @GetMapping()
     private ResponseEntity<PostResponse> posts(
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "10") int limit,
@@ -24,7 +24,15 @@ public class ApiPostController {
         return new ResponseEntity<>(postService.getPosts(offset, limit, mode), HttpStatus.OK);
     }
 
-    @PostMapping("/post")
+    @GetMapping("/search")
+    private ResponseEntity<PostResponse> postSearch(
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "") String query) {
+        return new ResponseEntity<>(postService.getSearchPosts(offset, limit, query), HttpStatus.OK);
+    }
+
+    @PostMapping()
     private ResponseEntity<AddPostResponse> addPost(@RequestBody AddPostRequest addPostRequest) {
         return new ResponseEntity<>(postService.addPost(addPostRequest), HttpStatus.OK);
     }
