@@ -1,17 +1,12 @@
 package main.service;
 
 import lombok.AllArgsConstructor;
-import main.api.dto.ErrorPostDTO;
-import main.api.dto.PostDTO;
-import main.api.dto.UserPostDTO;
+import main.api.dto.*;
 import main.api.request.AddPostRequest;
 import main.api.response.AddPostResponse;
 import main.api.response.PostResponse;
 import main.api.response.SinglePostResponse;
-import main.model.ModerationStatusType;
-import main.model.Post;
-import main.model.Tag;
-import main.model.User;
+import main.model.*;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
 import org.jsoup.Jsoup;
@@ -129,9 +124,9 @@ public class PostService {
                 .stream().filter(postVote -> postVote.getValue() == POST_LIKE).count());
         singlePost.setDislikeCount((int) post.getPostVotes()
                 .stream().filter(postVote -> postVote.getValue() == POST_DISLIKE).count());
-
-        //TODO: продолжить comments and tags
-        return null;
+        singlePost.setComments(getPostComments(post).toArray(PostCommentDTO[]::new));
+        singlePost.setTags(post.getTags().stream().map(Tag::getName).toArray(String[]::new));
+        return singlePost;
     }
 
 
@@ -170,6 +165,23 @@ public class PostService {
 
         savePostToDB(postRequest, user, moderationStatusType);
         return new AddPostResponse(true, null);
+    }
+
+    private List<PostCommentDTO> getPostComments(Post post){
+        List<PostCommentDTO> result = new ArrayList<>();
+        List<PostComment> postCommentList = post.getPostComments();
+        for (PostComment postComment : postCommentList){
+            PostCommentDTO postCommentDTO = new PostCommentDTO();
+            long unixTime = postComment.getTime().getTimeInMillis() / 1000;
+
+            postCommentDTO.setId(postComment.getId());
+            postCommentDTO.setText(postComment.getText());
+            postCommentDTO.setUser(new UserCommentDTO(postComment.getUser().getId(),
+                    postComment.getUser().getName(), postComment.getUser().getPhoto()));
+            postCommentDTO.setTimeStamp(unixTime);
+            result.add(postCommentDTO);
+        }
+        return result;
     }
 
     private void incrementNumberViewPost(Post post) {

@@ -25,5 +25,5 @@ public class SinglePostResponse {
     private int likeCount;
     private int dislikeCount;
     private PostCommentDTO[] comments;
-    private String tags;
+    private String[] tags;
 }
