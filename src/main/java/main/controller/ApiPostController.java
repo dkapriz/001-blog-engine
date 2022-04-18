@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import main.api.request.AddPostRequest;
 import main.api.response.AddPostResponse;
 import main.api.response.PostResponse;
+import main.api.response.SinglePostResponse;
 import main.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +49,13 @@ public class ApiPostController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "") String tag) {
         return new ResponseEntity<>(postService.getPostsByTag(offset, limit, tag), HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}")
+    private ResponseEntity<SinglePostResponse> postByID(@PathVariable int id) {
+        SinglePostResponse singlePostRequest = postService.getPostByID(id);
+        if (singlePostRequest == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(singlePostRequest, HttpStatus.OK);
     }
 
     @PostMapping()

@@ -2,10 +2,12 @@ package main.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.NaturalId;
 
 import javax.persistence.*;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @Setter
 @Getter
@@ -17,11 +19,21 @@ public class Tag {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
+    @NaturalId
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
 
-    @ManyToMany(mappedBy = "tags", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Post> posts;
+    @ManyToMany(mappedBy = "tags", fetch = FetchType.LAZY)
+    private Set<Post> posts;
+
+    public Tag() {
+        posts = new HashSet<>();
+    }
+
+    public Tag(String name) {
+        this();
+        this.name = name;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -29,5 +41,10 @@ public class Tag {
         if (o == null || getClass() != o.getClass()) return false;
         Tag tag = (Tag) o;
         return Objects.equals(name, tag.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
     }
 }

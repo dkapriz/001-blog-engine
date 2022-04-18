@@ -7,10 +7,13 @@ import main.api.dto.UserPostDTO;
 import main.api.request.AddPostRequest;
 import main.api.response.AddPostResponse;
 import main.api.response.PostResponse;
-import main.model.*;
+import main.api.response.SinglePostResponse;
+import main.model.ModerationStatusType;
+import main.model.Post;
+import main.model.Tag;
+import main.model.User;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
-import main.model.repositories.TagToPostRepository;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,7 +38,7 @@ public class PostService {
     private static final int MIN_LENGTH_POST_TITLE = 3;
     private static final int MIN_LENGTH_POST_TEXT = 50;
     private static final int MAX_LENGTH_POST_TITLE = 500;
-    private static final int MAX_LENGTH_POST_TEXT = 65000;
+    private static final int MAX_LENGTH_POST_TEXT = 600000;
     private static final int MAX_ANNOUNCE_LENGTH = 150;
     private static final String ERROR_ADD_POST_RESPONSE_MES_SHORT_TITLE = "Текст заголовка слишком короткий";
     private static final String ERROR_ADD_POST_RESPONSE_MES_SHORT_TEXT = "Текст публикации слишком короткий";
@@ -48,9 +51,6 @@ public class PostService {
 
     @Autowired
     private final PostRepository postRepository;
-
-    @Autowired
-    private final TagToPostRepository tagToPostRepository;
 
     @Autowired
     private final TagRepository tagRepository;
@@ -109,6 +109,32 @@ public class PostService {
                 .of(pageOffset, limit, Sort.by("time").descending()), tagTrim));
     }
 
+    public SinglePostResponse getPostByID(int id) {
+        Post post = postRepository.findPostByID(id);
+        if (post == null) {
+            return null;
+        }
+        incrementNumberViewPost(post);
+
+        SinglePostResponse singlePost = new SinglePostResponse();
+        long unixTime = post.getTime().getTimeInMillis() / 1000;
+
+        singlePost.setId(post.getId());
+        singlePost.setTimeStamp(unixTime);
+        singlePost.setActive(byteToBool(post.getIsActive()));
+        singlePost.setUser(new UserPostDTO(post.getUser().getId(), post.getUser().getName()));
+        singlePost.setTitle(post.getTitle());
+        singlePost.setText(post.getText());
+        singlePost.setLikeCount((int) post.getPostVotes()
+                .stream().filter(postVote -> postVote.getValue() == POST_LIKE).count());
+        singlePost.setDislikeCount((int) post.getPostVotes()
+                .stream().filter(postVote -> postVote.getValue() == POST_DISLIKE).count());
+
+        //TODO: продолжить comments and tags
+        return null;
+    }
+
+
     public AddPostResponse addPost(AddPostRequest postRequest) {
 
         // TODO: добавить проверку авторизации
@@ -141,13 +167,21 @@ public class PostService {
         if (settingsService.getGlobalSettingByCode(SettingsService.POST_PRE_MODERATION_FIELD_NAME)) {
             moderationStatusType = ModerationStatusType.NEW;
         }
-        List<Tag> savedTagList = getSavedTagList(postRequest.getTags());
-        Post post = savePostToDB(postRequest, user, moderationStatusType);
-        savedTagList.forEach(tag -> saveTagPostLinkToDB(post.getId(), tag.getId()));
+
+        savePostToDB(postRequest, user, moderationStatusType);
         return new AddPostResponse(true, null);
     }
 
-    private PostResponse getPostResponse(Page<Post> postPage){
+    private void incrementNumberViewPost(Post post) {
+        //TODO: добавить проверку модератор авторизирован или автор авторизирован
+        boolean isAuth = false; //заглушка
+
+        if (!isAuth) {
+            post.setViewCount(post.getViewCount() + 1);
+        }
+    }
+
+    private PostResponse getPostResponse(Page<Post> postPage) {
         List<PostDTO> postDTOS = new ArrayList<>();
         postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
         return new PostResponse(postPage.getTotalElements(), postDTOS);
@@ -181,7 +215,7 @@ public class PostService {
         return postCreationDate;
     }
 
-    private Post savePostToDB(AddPostRequest postRequest, User user, ModerationStatusType moderationStatusType) {
+    private void savePostToDB(AddPostRequest postRequest, User user, ModerationStatusType moderationStatusType) {
         Post post = new Post();
         post.setIsActive(postRequest.getActive());
         post.setModerationStatus(moderationStatusType);
@@ -190,36 +224,17 @@ public class PostService {
         post.setTitle(postRequest.getTitle());
         post.setText(postRequest.getText());
         post.setViewCount(0);
-        post.setTags(getUnsavedTagList(postRequest.getTags()));
-        return postRepository.save(post);
+        addTagsToPost(post, postRequest.getTags());
+        postRepository.save(post);
     }
 
-    private List<Tag> getUnsavedTagList(String[] tagsName) {
-        List<Tag> result = new ArrayList<>();
-        for (String tagName : tagsName) {
-            if (tagRepository.findByName(tagName).isEmpty()) {
-                Tag tag = new Tag();
-                tag.setName(tagName);
-                result.add(tag);
-            }
+    private void addTagsToPost(Post post, String[] strTags) {
+        for (String strTag : strTags) {
+            String strLowerCaseTag = strTag.toLowerCase();
+            Optional<Tag> tagOptional = tagRepository.findByName(strLowerCaseTag);
+            Tag tag = tagOptional.orElseGet(() -> new Tag(strLowerCaseTag));
+            post.addTag(tag);
         }
-        return result;
-    }
-
-    public List<Tag> getSavedTagList(String[] tagsName) {
-        List<Tag> result = new ArrayList<>();
-        for (String tagName : tagsName) {
-            Optional<Tag> tag = tagRepository.findByName(tagName);
-            tag.ifPresent(result::add);
-        }
-        return result;
-    }
-
-    private void saveTagPostLinkToDB(int postID, int tagID) {
-        TagToPost tagToPost = new TagToPost();
-        tagToPost.setPostID(postID);
-        tagToPost.setTagID(tagID);
-        tagToPostRepository.save(tagToPost);
     }
 
     private String removeHTMLTegFromText(String html) {
@@ -228,13 +243,17 @@ public class PostService {
 
     private String getAnnounceFromText(String text) {
         String modifyText = text;
-        if (text.length() > MAX_ANNOUNCE_LENGTH * 5) {
-            modifyText = modifyText.substring(0, (MAX_ANNOUNCE_LENGTH * 5) - 1);
+        if (text.length() > MAX_ANNOUNCE_LENGTH * 100) {
+            modifyText = modifyText.substring(0, (MAX_ANNOUNCE_LENGTH * 100) - 1);
         }
         modifyText = removeHTMLTegFromText(modifyText);
         int spaceIndex = modifyText.lastIndexOf(' ',
                 modifyText.length() < MAX_ANNOUNCE_LENGTH ? (modifyText.length() - 1) : (MAX_ANNOUNCE_LENGTH - 1));
         modifyText = modifyText.substring(0, spaceIndex) + "...";
         return modifyText;
+    }
+
+    private boolean byteToBool(byte value) {
+        return value == 1;
     }
 }

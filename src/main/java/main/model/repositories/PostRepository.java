@@ -54,12 +54,21 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
 
     @Query(value = "SELECT p FROM Post p " +
             "LEFT JOIN User u ON u.id = p.user " +
-            "LEFT JOIN TagToPost tp ON tp.postID = p.id " +
-            "LEFT JOIN Tag t ON tp.tagID = t.id " +
+            "LEFT JOIN p.tags t " +
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
             "AND p.time <= CURRENT_TIMESTAMP() " +
             "AND t.name = :tagName")
     Page<Post> findAllByTag(Pageable pageable, @Param("tagName") String tagName);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "LEFT JOIN User u ON u.id = p.user " +
+            "LEFT JOIN PostComment pc ON pc.post = p.id " +
+            "LEFT JOIN PostVote pv ON pv.post = p.id " +
+            "LEFT JOIN p.tags " +
+            "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND p.id = :id")
+    Post findPostByID(@Param("id") int id);
 
     @Query(value = "SELECT p FROM Post p " +
             "LEFT JOIN User u ON u.id = p.user " +
