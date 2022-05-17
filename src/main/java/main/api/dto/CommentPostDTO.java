@@ -10,12 +10,12 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class PostCommentDTO {
+public class CommentPostDTO {
     private int id;
 
     @JsonProperty("timestamp")
     private long timeStamp;
 
     private String text;
-    private UserCommentDTO user;
+    private UserDTO user;
 }

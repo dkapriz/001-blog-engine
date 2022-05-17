@@ -1,33 +1,41 @@
 package main.controller;
 
 import lombok.AllArgsConstructor;
+import main.api.request.AddUserRequest;
 import main.api.request.LoginRequest;
-import main.api.response.CheckAuthResponse;
-import main.api.response.LoginResponse;
-import main.service.CheckAuthService;
-import main.service.LoginService;
+import main.api.response.CaptchaResponse;
+import main.api.response.ResultResponse;
+import main.service.CaptchaService;
+import main.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 @AllArgsConstructor
 public class ApiAuthController {
 
-    private final CheckAuthService checkAuthService;
-    private final LoginService loginService;
+    private final CaptchaService captchaService;
+    private final UserService userService;
 
     @GetMapping("/check")
-    private ResponseEntity<CheckAuthResponse> checkAuth() {
-        return new ResponseEntity<>(checkAuthService.getResponse(), HttpStatus.OK);
+    private ResponseEntity<ResultResponse> checkAuth() {
+        return new ResponseEntity<>(userService.checkAuth(), HttpStatus.OK);
+    }
+
+    @GetMapping("/captcha")
+    private ResponseEntity<CaptchaResponse> captcha(){
+        return new ResponseEntity<>(captchaService.generateCaptcha(), HttpStatus.OK);
+    }
+
+    @PostMapping("/register")
+    private ResponseEntity<ResultResponse> register(@RequestBody AddUserRequest addUserRequest) {
+        return new ResponseEntity<>(userService.registration(addUserRequest), HttpStatus.OK);
     }
 
     @PostMapping("/login")
-    private ResponseEntity<LoginResponse> login(LoginRequest loginRequest) {
-        return new ResponseEntity<>(loginService.getResponse(loginRequest), HttpStatus.OK);
+    private ResponseEntity<ResultResponse> login(@RequestBody LoginRequest loginRequest) {
+        return new ResponseEntity<>(userService.login(loginRequest), HttpStatus.OK);
     }
 }

@@ -1,16 +1,27 @@
 package main.api.response;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import main.api.dto.CommentPostDTO;
 import main.api.dto.PostDTO;
-
-import java.util.List;
+import main.api.dto.UserDTO;
 
 @Getter
 @Setter
-@AllArgsConstructor
-public class PostResponse {
-    private long count;
-    private List<PostDTO> posts;
+@NoArgsConstructor
+public class PostResponse extends PostDTO {
+    private boolean active;
+    private String text;
+    private CommentPostDTO[] comments;
+    private String[] tags;
+
+    public PostResponse(int id, long timeStamp, boolean active, UserDTO user, String title, String text,
+                        int likeCount, int dislikeCount, CommentPostDTO[] comments, String[] tags) {
+        super(id, timeStamp, user, title, likeCount, dislikeCount);
+        this.active = active;
+        this.text = text;
+        this.comments = comments;
+        this.tags = tags;
+    }
 }

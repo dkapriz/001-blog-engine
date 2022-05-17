@@ -1,4 +1,4 @@
-package main.api.dto;
+package main.api.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,7 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class ErrorPostDTO {
-    private String title;
-    private String text;
+public class CaptchaResponse {
+    private String secret;
+    private String image;
 }

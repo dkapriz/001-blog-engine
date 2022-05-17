@@ -13,3 +13,25 @@ blog.phone: +7 (906) 764-73-71
 blog.email: dkapriz@mail.ru
 blog.copyright: Дмитрий Каприз
 blog.copyrightFrom: 2022
+
+## GENERATOR CAPTCHA
+config.captcha-time-live: 3600 #IN SECOND
+config.captcha-height: 35 #px
+config.captcha-wight: 100 #px
+config.captcha-format: png
+config.captcha-url: data:image/png;base64
+
+## TIME
+config.time-zone: UTC
+config.time-date-format: yyyy-MM-dd
+
+## USER
+config.user-min-length-password: 6
+
+## POST
+config.post-min-length-title: 3
+config.post-min-length-text: 50
+config.post-max-length-title: 500
+config.post-max-length-text: 600000
+config.post-max-length-announce: 150
+

@@ -1,40 +1,33 @@
 package main.service;
 
+import lombok.AllArgsConstructor;
 import main.api.request.SettingsRequest;
 import main.api.response.SettingsResponse;
+import main.configuratoin.BlogConfig;
 import main.model.GlobalSetting;
 import main.model.repositories.GlobalSettingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
+@AllArgsConstructor
 public class SettingsService {
 
     @Autowired
     private final GlobalSettingRepository globalSettingRepository;
-
-    public final static String MULTI_USER_MODE_FIELD_NAME = "MULTIUSER_MODE";
-    public final static String POST_PRE_MODERATION_FIELD_NAME = "POST_PRE_MODERATION";
-    public final static String STATISTIC_IS_PUBLIC_FIELD_NAME = "STATISTICS_IS_PUBLIC";
-    private final static String TRUE_VALUE = "YES";
-    private final static String FALSE_VALUE = "NO";
-
-    public SettingsService(GlobalSettingRepository globalSettingRepository) {
-        this.globalSettingRepository = globalSettingRepository;
-    }
 
     public SettingsResponse getGlobalSettings() {
         SettingsResponse settingsResponse = new SettingsResponse();
         Iterable<GlobalSetting> globalSettings = globalSettingRepository.findAll();
         globalSettings.forEach(globalSetting -> {
             switch (globalSetting.getCode()) {
-                case (MULTI_USER_MODE_FIELD_NAME):
+                case (BlogConfig.MULTI_USER_MODE_FIELD_NAME):
                     settingsResponse.setMultiUserMode(stringToBoolean(globalSetting.getValue()));
                     break;
-                case (POST_PRE_MODERATION_FIELD_NAME):
+                case (BlogConfig.POST_PRE_MODERATION_FIELD_NAME):
                     settingsResponse.setPostPreModeration(stringToBoolean(globalSetting.getValue()));
                     break;
-                case (STATISTIC_IS_PUBLIC_FIELD_NAME):
+                case (BlogConfig.STATISTIC_IS_PUBLIC_FIELD_NAME):
                     settingsResponse.setStatisticsIsPublic(stringToBoolean(globalSetting.getValue()));
                     break;
             }
@@ -53,9 +46,9 @@ public class SettingsService {
     }
 
     public void setGlobalSettings(SettingsRequest settings) {
-        saveSetting(MULTI_USER_MODE_FIELD_NAME, settings.isMultiUserMode());
-        saveSetting(POST_PRE_MODERATION_FIELD_NAME, settings.isPostPreModeration());
-        saveSetting(STATISTIC_IS_PUBLIC_FIELD_NAME, settings.isStatisticsIsPublic());
+        saveSetting(BlogConfig.MULTI_USER_MODE_FIELD_NAME, settings.isMultiUserMode());
+        saveSetting(BlogConfig.POST_PRE_MODERATION_FIELD_NAME, settings.isPostPreModeration());
+        saveSetting(BlogConfig.STATISTIC_IS_PUBLIC_FIELD_NAME, settings.isStatisticsIsPublic());
     }
 
     private void saveSetting(String code, Boolean value) {
@@ -70,10 +63,10 @@ public class SettingsService {
     }
 
     private boolean stringToBoolean(String value) {
-        return value.equals(TRUE_VALUE);
+        return value.equals(BlogConfig.TRUE_VALUE);
     }
 
     private String booleanToString(Boolean value) {
-        return value ? TRUE_VALUE : FALSE_VALUE;
+        return value ? BlogConfig.TRUE_VALUE : BlogConfig.FALSE_VALUE;
     }
 }

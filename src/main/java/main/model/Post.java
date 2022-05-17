@@ -27,7 +27,7 @@ public class Post {
             columnDefinition = "ENUM(\"NEW\",\"ACCEPTED\",\"DECLINED\")", nullable = false)
     private ModerationStatusType moderationStatus;
 
-    @JoinColumn(name = "moderator_id", columnDefinition = "INT")
+    @Column(name = "moderator_id", columnDefinition = "INT")
     private int moderatorID;
 
     @ManyToOne

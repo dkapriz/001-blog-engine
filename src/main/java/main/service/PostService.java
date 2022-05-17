@@ -1,11 +1,16 @@
 package main.service;
 
 import lombok.AllArgsConstructor;
-import main.api.dto.*;
+import main.api.dto.CommentPostDTO;
+import main.api.dto.PostDTO;
+import main.api.dto.UserDTO;
 import main.api.request.AddPostRequest;
-import main.api.response.AddPostResponse;
+import main.api.response.CalendarResponse;
+import main.api.response.PostListResponse;
 import main.api.response.PostResponse;
-import main.api.response.SinglePostResponse;
+import main.api.response.ResultResponse;
+import main.configuratoin.BlogConfig;
+import main.exception.IllegalParameterException;
 import main.model.*;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
@@ -23,69 +28,49 @@ import java.util.*;
 @Service
 @AllArgsConstructor
 public class PostService {
-
-    private static final String SORT_POST_TYPE_BY_DATE_PUBLICATION_DES = "recent";
-    private static final String SORT_POST_TYPE_BY_COMMENT_DES = "popular";
-    private static final String SORT_POST_TYPE_BY_LIKE_DES = "best";
-    private static final String SORT_POST_TYPE_BY_DATE_PUBLICATION_ASC = "early";
-    private static final byte POST_LIKE = 1;
-    private static final byte POST_DISLIKE = -1;
-    private static final int MIN_LENGTH_POST_TITLE = 3;
-    private static final int MIN_LENGTH_POST_TEXT = 50;
-    private static final int MAX_LENGTH_POST_TITLE = 500;
-    private static final int MAX_LENGTH_POST_TEXT = 600000;
-    private static final int MAX_ANNOUNCE_LENGTH = 150;
-    private static final String ERROR_ADD_POST_RESPONSE_MES_SHORT_TITLE = "Текст заголовка слишком короткий";
-    private static final String ERROR_ADD_POST_RESPONSE_MES_SHORT_TEXT = "Текст публикации слишком короткий";
-    private static final String ERROR_ADD_POST_RESPONSE_MES_LONG_TITLE = "Текст заголовка слишком длинный";
-    private static final String ERROR_ADD_POST_RESPONSE_MES_LONG_TEXT = "Текст публикации слишком длинный";
-    private static final String ERROR_ADD_POST_RESPONSE_MES_EMPTY_TITLE = "Заголовок не установлен";
-    private static final String ERROR_ADD_POST_RESPONSE_MES_EMPTY_TEXT = "Текст публикации пустой";
-    private static final String TIME_ZONE = "UTC";
-    private static final String PATTERN_DATE_FORMAT = "yyyy-MM-dd";
-
     @Autowired
     private final PostRepository postRepository;
-
     @Autowired
     private final TagRepository tagRepository;
-
+    @Autowired
+    private final BlogConfig config;
+    @Autowired
     private final SettingsService settingsService;
 
-    public PostResponse getPosts(int offset, int limit, String mode) {
+    public PostListResponse getPosts(int offset, int limit, String mode) {
         int pageOffset = offset / limit;
         switch (mode) {
-            case (SORT_POST_TYPE_BY_DATE_PUBLICATION_DES):
+            case (BlogConfig.POST_SORT_PARAMETER_NAME_BY_DATE_PUBLICATION_DES):
                 return getPostResponse(postRepository
                         .findAll(PageRequest.of(pageOffset, limit, Sort.by("time").descending())));
-            case (SORT_POST_TYPE_BY_DATE_PUBLICATION_ASC):
+            case (BlogConfig.POST_SORT_PARAMETER_NAME_BY_DATE_PUBLICATION_ASC):
                 return getPostResponse(postRepository
                         .findAll(PageRequest.of(pageOffset, limit, Sort.by("time").ascending())));
-            case (SORT_POST_TYPE_BY_COMMENT_DES):
+            case (BlogConfig.POST_SORT_PARAMETER_NAME_BY_COMMENT_DES):
                 return getPostResponse(postRepository.findAllSortByCountCommentDesc(PageRequest.of(pageOffset, limit)));
-            case (SORT_POST_TYPE_BY_LIKE_DES):
+            case (BlogConfig.POST_SORT_PARAMETER_NAME_BY_LIKE_DES):
                 return getPostResponse(postRepository.findAllSortByCountLikeDesc(PageRequest.of(pageOffset, limit)));
             default:
                 throw new IllegalArgumentException("Invalid value of the 'mode' argument in the 'posts' request");
         }
     }
 
-    public PostResponse getSearchPosts(int offset, int limit, String query) {
+    public PostListResponse getSearchPosts(int offset, int limit, String query) {
         String queryTrim = query.trim();
         if (queryTrim.isEmpty()) {
-            return getPosts(offset, limit, SORT_POST_TYPE_BY_DATE_PUBLICATION_DES);
+            return getPosts(offset, limit, BlogConfig.POST_SORT_PARAMETER_NAME_BY_DATE_PUBLICATION_DES);
         }
         int pageOffset = offset / limit;
         return getPostResponse(postRepository.findAllByQuery(PageRequest
                 .of(pageOffset, limit, Sort.by("time").descending()), queryTrim));
     }
 
-    public PostResponse getPostsByDate(int offset, int limit, String date) throws ParseException {
+    public PostListResponse getPostsByDate(int offset, int limit, String date) throws ParseException {
         String dateTrim = date.trim();
         if (dateTrim.isEmpty()) {
-            return new PostResponse(0, new ArrayList<>());
+            return new PostListResponse(0, new ArrayList<>());
         }
-        SimpleDateFormat formatDate = new SimpleDateFormat(PATTERN_DATE_FORMAT);
+        SimpleDateFormat formatDate = new SimpleDateFormat(config.getTimeDateFormat());
         Date searchDate = formatDate.parse(dateTrim);
 
         int pageOffset = offset / limit;
@@ -93,10 +78,10 @@ public class PostService {
                 .of(pageOffset, limit, Sort.by("time").descending()), searchDate));
     }
 
-    public PostResponse getPostsByTag(int offset, int limit, String tag) {
+    public PostListResponse getPostsByTag(int offset, int limit, String tag) {
         String tagTrim = tag.trim();
         if (tagTrim.isEmpty()) {
-            return new PostResponse(0, new ArrayList<>());
+            return new PostListResponse(0, new ArrayList<>());
         }
 
         int pageOffset = offset / limit;
@@ -104,53 +89,58 @@ public class PostService {
                 .of(pageOffset, limit, Sort.by("time").descending()), tagTrim));
     }
 
-    public SinglePostResponse getPostByID(int id) {
+    public PostResponse getPostByID(int id) {
         Post post = postRepository.findPostByID(id);
         if (post == null) {
             return null;
         }
         incrementNumberViewPost(post);
 
-        SinglePostResponse singlePost = new SinglePostResponse();
+        PostResponse postResponse = new PostResponse();
         long unixTime = post.getTime().getTimeInMillis() / 1000;
 
-        singlePost.setId(post.getId());
-        singlePost.setTimeStamp(unixTime);
-        singlePost.setActive(byteToBool(post.getIsActive()));
-        singlePost.setUser(new UserPostDTO(post.getUser().getId(), post.getUser().getName()));
-        singlePost.setTitle(post.getTitle());
-        singlePost.setText(post.getText());
-        singlePost.setLikeCount((int) post.getPostVotes()
-                .stream().filter(postVote -> postVote.getValue() == POST_LIKE).count());
-        singlePost.setDislikeCount((int) post.getPostVotes()
-                .stream().filter(postVote -> postVote.getValue() == POST_DISLIKE).count());
-        singlePost.setComments(getPostComments(post).toArray(PostCommentDTO[]::new));
-        singlePost.setTags(post.getTags().stream().map(Tag::getName).toArray(String[]::new));
-        return singlePost;
+        postResponse.setId(post.getId());
+        postResponse.setTimeStamp(unixTime);
+        postResponse.setActive(byteToBool(post.getIsActive()));
+        postResponse.setUser(new UserDTO(post.getUser().getId(), post.getUser().getName()));
+        postResponse.setTitle(post.getTitle());
+        postResponse.setText(post.getText());
+        postResponse.setLikeCount((int) post.getPostVotes()
+                .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_LIKE).count());
+        postResponse.setDislikeCount((int) post.getPostVotes()
+                .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_DISLIKE).count());
+        postResponse.setComments(getPostComments(post).toArray(CommentPostDTO[]::new));
+        postResponse.setTags(post.getTags().stream().map(Tag::getName).toArray(String[]::new));
+        return postResponse;
     }
 
-
-    public AddPostResponse addPost(AddPostRequest postRequest) {
+    public ResultResponse addPost(AddPostRequest postRequest) {
 
         // TODO: добавить проверку авторизации
 
         if (postRequest.getTitle().isEmpty()) {
-            return new AddPostResponse(false, new ErrorPostDTO(ERROR_ADD_POST_RESPONSE_MES_EMPTY_TITLE, ""));
+            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMPTY_TITLE_POST_FRONTEND_MSG);
         }
         if (postRequest.getText().isEmpty()) {
-            return new AddPostResponse(false, new ErrorPostDTO("", ERROR_ADD_POST_RESPONSE_MES_EMPTY_TEXT));
+            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMPTY_TEXT_POST_FRONTEND_MSG);
         }
-        if (postRequest.getTitle().length() < MIN_LENGTH_POST_TITLE) {
-            return new AddPostResponse(false, new ErrorPostDTO(ERROR_ADD_POST_RESPONSE_MES_SHORT_TITLE, ""));
+        if (postRequest.getTitle().length() < config.getPostMinLengthTitle()) {
+            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_SHORT_TITLE_POST_FRONTEND_MSG);
         }
-        if (postRequest.getText().length() < MIN_LENGTH_POST_TEXT) {
-            return new AddPostResponse(false, new ErrorPostDTO("", ERROR_ADD_POST_RESPONSE_MES_SHORT_TEXT));
+        if (postRequest.getText().length() < config.getPostMinLengthText()) {
+            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_SHORT_TEXT_POST_FRONTEND_MSG);
         }
-        if (postRequest.getTitle().length() > MAX_LENGTH_POST_TITLE) {
-            return new AddPostResponse(false, new ErrorPostDTO(ERROR_ADD_POST_RESPONSE_MES_LONG_TITLE, ""));
+        if (postRequest.getTitle().length() > config.getPostMaxLengthTitle()) {
+            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_LONG_TITLE_POST_FRONTEND_MSG);
         }
-        if (postRequest.getText().length() > MAX_LENGTH_POST_TEXT) {
-            return new AddPostResponse(false, new ErrorPostDTO("", ERROR_ADD_POST_RESPONSE_MES_LONG_TEXT));
+        if (postRequest.getText().length() > config.getPostMaxLengthText()) {
+            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_LONG_TEXT_POST_FRONTEND_MSG);
         }
 
         // TODO: получение пользователя временно стоит заглушка
@@ -159,24 +149,45 @@ public class PostService {
         user.setId(1);
 
         ModerationStatusType moderationStatusType = ModerationStatusType.ACCEPTED;
-        if (settingsService.getGlobalSettingByCode(SettingsService.POST_PRE_MODERATION_FIELD_NAME)) {
+        if (settingsService.getGlobalSettingByCode(BlogConfig.POST_PRE_MODERATION_FIELD_NAME)) {
             moderationStatusType = ModerationStatusType.NEW;
         }
 
         savePostToDB(postRequest, user, moderationStatusType);
-        return new AddPostResponse(true, null);
+        return new ResultResponse(true);
     }
 
-    private List<PostCommentDTO> getPostComments(Post post){
-        List<PostCommentDTO> result = new ArrayList<>();
+    public CalendarResponse getCalendar(String year) {
+        Calendar searchYear = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
+        if (!year.trim().isEmpty()) {
+            searchYear.set(Calendar.YEAR, Integer.parseInt(year));
+        }
+        String[] allYearsPost = postRepository.findAllYearValue();
+        List<Post> postBySearchYear = postRepository.findAllByYear(searchYear.getTime());
+
+        SimpleDateFormat formatDate = new SimpleDateFormat(config.getTimeDateFormat());
+        Map<String, Integer> dateCount = new HashMap<>();
+        for (Post post : postBySearchYear) {
+            String postDate = formatDate.format(post.getTime().getTime());
+            if (dateCount.containsKey(postDate)) {
+                dateCount.put(postDate, dateCount.get(postDate) + 1);
+                continue;
+            }
+            dateCount.put(postDate, 1);
+        }
+        return new CalendarResponse(allYearsPost, dateCount);
+    }
+
+    private List<CommentPostDTO> getPostComments(Post post) {
+        List<CommentPostDTO> result = new ArrayList<>();
         List<PostComment> postCommentList = post.getPostComments();
-        for (PostComment postComment : postCommentList){
-            PostCommentDTO postCommentDTO = new PostCommentDTO();
+        for (PostComment postComment : postCommentList) {
+            CommentPostDTO postCommentDTO = new CommentPostDTO();
             long unixTime = postComment.getTime().getTimeInMillis() / 1000;
 
             postCommentDTO.setId(postComment.getId());
             postCommentDTO.setText(postComment.getText());
-            postCommentDTO.setUser(new UserCommentDTO(postComment.getUser().getId(),
+            postCommentDTO.setUser(new UserDTO(postComment.getUser().getId(),
                     postComment.getUser().getName(), postComment.getUser().getPhoto()));
             postCommentDTO.setTimeStamp(unixTime);
             result.add(postCommentDTO);
@@ -193,33 +204,33 @@ public class PostService {
         }
     }
 
-    private PostResponse getPostResponse(Page<Post> postPage) {
+    private PostListResponse getPostResponse(Page<Post> postPage) {
         List<PostDTO> postDTOS = new ArrayList<>();
         postPage.forEach(post -> postDTOS.add(postToPostDTO(post)));
-        return new PostResponse(postPage.getTotalElements(), postDTOS);
+        return new PostListResponse(postPage.getTotalElements(), postDTOS);
     }
 
-    private PostDTO postToPostDTO(Post post) {
+    public PostDTO postToPostDTO(Post post) {
         PostDTO postDTO = new PostDTO();
         long unixTime = post.getTime().getTimeInMillis() / 1000;
 
         postDTO.setId(post.getId());
         postDTO.setTimeStamp(unixTime);
-        postDTO.setUser(new UserPostDTO(post.getUser().getId(), post.getUser().getName()));
+        postDTO.setUser(new UserDTO(post.getUser().getId(), post.getUser().getName()));
         postDTO.setTitle(post.getTitle());
         postDTO.setAnnounce(getAnnounceFromText(post.getText()));
         postDTO.setLikeCount((int) post.getPostVotes()
-                .stream().filter(postVote -> postVote.getValue() == POST_LIKE).count());
+                .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_LIKE).count());
         postDTO.setDislikeCount((int) post.getPostVotes()
-                .stream().filter(postVote -> postVote.getValue() == POST_DISLIKE).count());
+                .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_DISLIKE).count());
         postDTO.setCommentCount(post.getPostComments().size());
         postDTO.setViewCount(post.getViewCount());
         return postDTO;
     }
 
     private Calendar checkDateCreationPost(long time) {
-        Calendar postCreationDate = Calendar.getInstance(TimeZone.getTimeZone(TIME_ZONE));
-        Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone(TIME_ZONE));
+        Calendar postCreationDate = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
+        Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
         postCreationDate.setTimeInMillis(time);
         if (postCreationDate.before(currentDate)) {
             return currentDate;
@@ -255,12 +266,13 @@ public class PostService {
 
     private String getAnnounceFromText(String text) {
         String modifyText = text;
-        if (text.length() > MAX_ANNOUNCE_LENGTH * 100) {
-            modifyText = modifyText.substring(0, (MAX_ANNOUNCE_LENGTH * 100) - 1);
+        if (text.length() > config.getPostMaxLengthAnnounce() * 100) {
+            modifyText = modifyText.substring(0, (config.getPostMaxLengthAnnounce() * 100) - 1);
         }
         modifyText = removeHTMLTegFromText(modifyText);
         int spaceIndex = modifyText.lastIndexOf(' ',
-                modifyText.length() < MAX_ANNOUNCE_LENGTH ? (modifyText.length() - 1) : (MAX_ANNOUNCE_LENGTH - 1));
+                modifyText.length() < config.getPostMaxLengthAnnounce() ?
+                        (modifyText.length() - 1) : (config.getPostMaxLengthAnnounce() - 1));
         modifyText = modifyText.substring(0, spaceIndex) + "...";
         return modifyText;
     }

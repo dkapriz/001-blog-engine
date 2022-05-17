@@ -1,4 +1,4 @@
-package main.api.dto;
+package main.api.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,7 +7,6 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class UserPostDTO {
-    private int id;
-    private String name;
+public class ResultResponse {
+    protected boolean result;
 }
