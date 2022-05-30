@@ -12,7 +12,10 @@ import main.api.response.ResultResponse;
 import main.config.BlogConfig;
 import main.exception.IllegalParameterException;
 import main.exception.PageNotFoundException;
-import main.model.*;
+import main.model.Post;
+import main.model.PostComment;
+import main.model.Tag;
+import main.model.User;
 import main.model.enums.ModerationStatusType;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
@@ -196,7 +199,7 @@ public class PostService {
         }
 
         savePostToDB(postRequest, user, moderationStatusType);
-        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO,"Добавлен пост  - " + postRequest.getText());
+        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Добавлен пост  - " + postRequest.getText());
         return new ResultResponse(true);
     }
 

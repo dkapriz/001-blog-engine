@@ -28,7 +28,7 @@ public class ApiAuthController {
     }
 
     @GetMapping("/captcha")
-    public ResponseEntity<CaptchaResponse> captcha(){
+    public ResponseEntity<CaptchaResponse> captcha() {
         return new ResponseEntity<>(captchaService.generateCaptcha(), HttpStatus.OK);
     }
 
@@ -44,7 +44,7 @@ public class ApiAuthController {
 
     @GetMapping("/logout")
     @PreAuthorize("hasAuthority('user:write')")
-    public ResponseEntity<ResultResponse> logout(){
+    public ResponseEntity<ResultResponse> logout() {
         return new ResponseEntity<>(userService.logout(), HttpStatus.OK);
     }
 }

@@ -1,7 +1,6 @@
 package main.exception;
 
-public class PageNotFoundException extends RuntimeException{
-    private String type;
+public class PageNotFoundException extends RuntimeException {
 
     public PageNotFoundException(String massage) {
         super(massage);

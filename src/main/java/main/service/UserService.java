@@ -2,10 +2,10 @@ package main.service;
 
 import lombok.AllArgsConstructor;
 import main.api.dto.UserAdvancedDTO;
-import main.api.response.UserResultResponse;
 import main.api.request.AddUserRequest;
 import main.api.request.LoginRequest;
 import main.api.response.ResultResponse;
+import main.api.response.UserResultResponse;
 import main.config.BlogConfig;
 import main.exception.IllegalParameterException;
 import main.model.Post;
@@ -46,7 +46,7 @@ public class UserService {
         org.springframework.security.core.userdetails.User user =
                 (org.springframework.security.core.userdetails.User) auth.getPrincipal();
         User currentUser = getUserByEmail(user.getUsername());
-        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO,"Вход пользователя - " + currentUser.getName() +
+        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Вход пользователя - " + currentUser.getName() +
                 " - " + currentUser.getEmail());
         return new UserResultResponse(true, UserToUserAdvancedDTO(currentUser));
     }
@@ -75,7 +75,7 @@ public class UserService {
         user.setPassword(encodePassword(addUserRequest.getPassword()));
         user.setRegTime(Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone())));
         userRepository.save(user);
-        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO,"Регистрация пользователя - " + user.getName() +
+        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Регистрация пользователя - " + user.getName() +
                 " - " + user.getEmail());
         return new ResultResponse(true);
     }
