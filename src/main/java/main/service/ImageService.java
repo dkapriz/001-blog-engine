@@ -1,5 +1,6 @@
 package main.service;
 
+import main.config.BlogConfig;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
@@ -26,8 +27,9 @@ public class ImageService {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ImageIO.write(image, imageFormat, byteArrayOutputStream);
             result = byteArrayOutputStream.toByteArray();
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ex) {
+            BlogConfig.LOGGER.error(ex.getMessage());
+            ex.printStackTrace();
         }
         return result;
     }

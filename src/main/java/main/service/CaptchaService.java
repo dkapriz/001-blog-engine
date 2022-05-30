@@ -4,7 +4,7 @@ import com.github.cage.Cage;
 import com.github.cage.GCage;
 import lombok.AllArgsConstructor;
 import main.api.response.CaptchaResponse;
-import main.configuratoin.BlogConfig;
+import main.config.BlogConfig;
 import main.exception.IllegalParameterException;
 import main.model.CaptchaCode;
 import main.model.repositories.CaptchaCodeRepository;

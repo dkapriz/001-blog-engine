@@ -1,25 +1,45 @@
 package main.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import main.api.dto.ErrorDTO;
 import main.api.dto.PostDTO;
+import main.api.request.AddPostRequest;
+import main.api.request.LoginRequest;
 import main.api.response.PostListResponse;
-import main.configuratoin.BlogConfig;
+import main.api.response.ResultResponse;
+import main.api.response.UserResultResponse;
+import main.config.BlogConfig;
+import main.model.Post;
+import main.model.User;
+import main.model.enums.ModerationStatusType;
 import main.model.repositories.PostRepository;
+import main.model.repositories.UserRepository;
 import main.service.PostService;
+import main.service.UserService;
+import org.hamcrest.Matchers;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.web.context.WebApplicationContext;
 
 import javax.transaction.Transactional;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,6 +47,8 @@ import java.util.stream.Collectors;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
+import static org.springframework.test.web.servlet.setup.SharedHttpSessionConfigurer.sharedHttpSession;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -38,6 +60,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class TestPostController {
 
     private static final int POST_COUNT = 10;
+    private static final int LIMIT = 10;
+    private static final int OFFSET = 0;
     private static final String GET = "get";
     private static final String POST = "post";
     private static final String PUT = "put";
@@ -45,9 +69,20 @@ public class TestPostController {
     private static final String SEARCH_STRING = "Поиск";
     private static final String SEARCH_DATE = "2022-05-15";
     private static final String SEARCH_TAG = "tag1";
+    private static final String USER_LOGIN = "test_user@mail.ru";
+    private static final String USER_MODERATOR = "test_moderator@mail.ru";
+    private static final String PASSWORD = "password";
+    private static final String TEST_POST_TITLE = "Не следует";
+    private static final String TEST_POST_SHORT = "Не";
+    private static final String TEST_POST_TEXT = "Не следует, однако, забывать о том, что постоянный количественный " +
+            "рост и сфера нашей активности способствует повышению актуальности дальнейших направлений развития " +
+            "проекта? Повседневная практика показывает, что выбранный нами инновационный путь играет важную роль в " +
+            "формировании позиций, занимаемых участниками в отношении поставленных задач. Значимость этих проблем " +
+            "настолько очевидна, что рамки и место обучения кадров играет важную роль в формировании системы " +
+            "масштабного изменения ряда параметров.";
 
     private static final String POST_RESPONSE_BY_ID_101 = "{\"id\":101,\"user\":{\"id\":10,\"name\":\"Test\"}," +
-            "\"title\":\"Заголовок 2\",\"likeCount\":0,\"dislikeCount\":0,\"commentCount\":0,\"viewCount\":0," +
+            "\"title\":\"Заголовок 2\",\"likeCount\":0,\"dislikeCount\":0,\"commentCount\":0,\"viewCount\":1," +
             "\"active\":true,\"text\":\"Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст\"," +
             "\"comments\":[{\"id\":15,\"text\":\"Комментарий 6\",\"user\":{\"id\":10,\"name\":\"Test\"}," +
             "\"timestamp\":1621161130}],\"tags\":[\"tag2\"],\"timestamp\":1621074730}";
@@ -55,11 +90,21 @@ public class TestPostController {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private BlogConfig config;
+    private WebApplicationContext wac;
     @Autowired
     private PostService postService;
     @Autowired
     private PostRepository postRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private UserService userService;
+    private BlogConfig config;
+
+    @Before
+    public void setUp() {
+        mockMvc = webAppContextSetup(this.wac).apply(sharedHttpSession()).build();
+    }
 
     @Test
     public void testGetPostsByModeResent() throws Exception {
@@ -119,6 +164,86 @@ public class TestPostController {
         testGetPosts(status().isNotFound(), "/api/post/1000", null);
     }
 
+    @Test
+    public void testGetMyPostsByStatusPublished() throws Exception {
+        userLogin(USER_MODERATOR, PASSWORD);
+        testGetPosts(status().isOk(), GET, "/api/post/my",
+                10, 0, "status", "published",
+                createPostListResponseByIDs(2, 108, 109));
+    }
+
+    @Test
+    public void testGetMyPostsByStatusInactive() throws Exception {
+        userLogin(USER_LOGIN, PASSWORD);
+        testGetPosts(status().isOk(), GET, "/api/post/my",
+                10, 0, "status", "inactive",
+                createPostListResponseByIDs(ModerationStatusType.ACCEPTED, (byte) 0, 1, 110));
+    }
+
+    @Test
+    public void testGetMyPostsByStatusDeclined() throws Exception {
+        userLogin(USER_LOGIN, PASSWORD);
+        testGetPosts(status().isOk(), GET, "/api/post/my",
+                10, 0, "status", "declined",
+                createPostListResponseByIDs(ModerationStatusType.DECLINED, (byte) 1, 1, 111));
+    }
+
+    @Test
+    public void testGetMyPostsByStatusPending() throws Exception {
+        userLogin(USER_LOGIN, PASSWORD);
+        testGetPosts(status().isOk(), GET, "/api/post/my",
+                10, 0, "status", "pending",
+                createPostListResponseByIDs(ModerationStatusType.NEW, (byte) 1, 1, 112));
+    }
+
+    @Test
+    public void getPostsModeration() throws Exception {
+        userLogin(USER_MODERATOR, PASSWORD);
+        testGetPosts(status().isOk(), GET, "/api/post/moderation",
+                10, 0, "status", "new",
+                createPostListResponseByIDs(ModerationStatusType.NEW, (byte) 1, 1, 112));
+    }
+
+    @Test
+    public void testAddPost() throws Exception {
+        userLogin(USER_MODERATOR, PASSWORD);
+        LocalDateTime date = LocalDateTime.parse("2022-05-12T10:00:00");
+        ZonedDateTime zonedDate = date.atZone(ZoneId.systemDefault());
+        String[] tags = {"tag1", "tag2"};
+        int pageOffset = OFFSET / LIMIT;
+        ResultResponse response = new ResultResponse(true);
+        AddPostRequest addPostRequest = new AddPostRequest(zonedDate.toInstant().toEpochMilli(),
+                (byte) 1, TEST_POST_TITLE, tags, TEST_POST_TEXT);
+        ObjectMapper mapper = new ObjectMapper();
+        mockMvc.perform(post("/api/post").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsBytes(addPostRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(mapper.writeValueAsString(response)));
+        Post addedPost = postRepository.findAllByQuery(PageRequest.of(pageOffset, LIMIT, Sort.by("time").descending()),
+                TEST_POST_TITLE).stream().findFirst().orElseThrow();
+        Assert.assertNotNull(addedPost);
+        Assert.assertEquals(TEST_POST_TEXT, addedPost.getText());
+        Assert.assertThat(tags, Matchers.arrayContainingInAnyOrder(
+                addedPost.getTags().stream().map(tag -> tag.getName()).toArray()));
+    }
+
+    @Test
+    public void testAddPostShortText() throws Exception {
+        userLogin(USER_MODERATOR, PASSWORD);
+        LocalDateTime date = LocalDateTime.parse("2022-05-12T10:00:00");
+        ZonedDateTime zonedDate = date.atZone(ZoneId.systemDefault());
+        String[] tags = {"tag1", "tag2"};
+        ErrorDTO response = new ErrorDTO(false, BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                BlogConfig.ERROR_SHORT_TITLE_POST_FRONTEND_MSG);
+        AddPostRequest addPostRequest = new AddPostRequest(zonedDate.toInstant().toEpochMilli(),
+                (byte) 1, TEST_POST_SHORT, tags, TEST_POST_TEXT);
+        ObjectMapper mapper = new ObjectMapper();
+        mockMvc.perform(post("/api/post").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsBytes(addPostRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(mapper.writeValueAsString(response)));
+    }
+
     private void testGetPosts(ResultMatcher statusCode, String url, String executeResponse) throws Exception {
         testGetPosts(statusCode, GET, url, 0, 0, "", "", executeResponse);
     }
@@ -147,10 +272,10 @@ public class TestPostController {
             default:
                 return;
         }
-        if (limit > 0) {
+        if (limit >= 0) {
             requestBuilder = requestBuilder.param("limit", String.valueOf(limit));
         }
-        if (offset > 0) {
+        if (offset >= 0) {
             requestBuilder = requestBuilder.param("offset", String.valueOf(offset));
         }
         if (!paramName.isEmpty()) {
@@ -169,9 +294,34 @@ public class TestPostController {
     private String createPostListResponseByIDs(int postCount, int... ResponsePostIDs) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         List<PostDTO> postsExpected = Arrays.stream(ResponsePostIDs)
-                .mapToObj(id -> postService.postToPostDTO(postRepository.findPostByID(id)))
+                .mapToObj(id -> postService.postToPostDTO(postRepository.findPostByIDIsActiveAndAccepted(id)))
                 .collect(Collectors.toList());
         PostListResponse postListResponse = new PostListResponse(postCount, postsExpected);
         return mapper.writeValueAsString(postListResponse);
+    }
+
+    private String createPostListResponseByIDs(ModerationStatusType moderationStatus, byte isActive, int postCount,
+                                               int... ResponsePostIDs) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        List<PostDTO> postsExpected = Arrays.stream(ResponsePostIDs)
+                .mapToObj(id -> postService.postToPostDTO(postRepository.findPostByID(id, isActive, moderationStatus)))
+                .collect(Collectors.toList());
+        PostListResponse postListResponse = new PostListResponse(postCount, postsExpected);
+        return mapper.writeValueAsString(postListResponse);
+    }
+
+    private User userLogin(String username, String password) throws Exception {
+        LoginRequest request = new LoginRequest(username, password);
+        User user = userRepository.findByEmail(username).orElseThrow(null);
+        ObjectMapper mapper = new ObjectMapper();
+        UserResultResponse response = new UserResultResponse(true, userService.UserToUserAdvancedDTO(user));
+        MvcResult result = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsBytes(request)))
+                .andExpect(status().isOk()).andReturn();
+        Assert.assertArrayEquals(
+                "Responses are different",
+                mapper.writeValueAsBytes(response),
+                result.getResponse().getContentAsByteArray());
+        return user;
     }
 }

@@ -22,6 +22,12 @@ public class ErrorDTO extends ResultResponse {
         this.errors = errors;
     }
 
+    public ErrorDTO(boolean result, String message) {
+        super(result);
+        this.errors = new HashMap<>();
+        this.errors.put("message", message);
+    }
+
     public ErrorDTO(boolean result, String type, String message) {
         super(result);
         this.errors = new HashMap<>();

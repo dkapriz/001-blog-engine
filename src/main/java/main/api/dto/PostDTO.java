@@ -26,12 +26,13 @@ public class PostDTO {
     private int commentCount;
     private int viewCount;
 
-    public PostDTO(int id, long timeStamp, UserDTO user, String title, int likeCount, int dislikeCount) {
+    public PostDTO(int id, long timeStamp, UserDTO user, String title, int likeCount, int dislikeCount, int viewCount) {
         this.id = id;
         this.timeStamp = timeStamp;
         this.user = user;
         this.title = title;
         this.likeCount = likeCount;
         this.dislikeCount = dislikeCount;
+        this.viewCount = viewCount;
     }
 }

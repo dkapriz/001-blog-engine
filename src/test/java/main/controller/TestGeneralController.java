@@ -44,7 +44,7 @@ public class TestGeneralController {
     private static final String[] TAG_NAME = {"tag_test1", "tag_test2", "tag3", "tag4", "tag5"};
     private static final double[] TAG_WEIGHT = {1.0, 0.75, 0.25, 0.25, 0.25};
     private static final String TAG_TESTED_NAME = "tag_test";
-    private static final String[] CALENDAR_YEARS_LIST = {"2020", "2022"};
+    private static final String[] CALENDAR_YEARS_LIST = {"2021", "2022"};
     private static final String CALENDAR_EXPECTED_POST_DATE = "2022-05-15";
     private static final int CALENDAR_EXPECTED_POST_COUNT = 2;
     private static final String CALENDAR_TESTED_YEAR = "2022";

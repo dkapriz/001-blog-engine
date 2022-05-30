@@ -3,7 +3,7 @@ package main.service;
 import lombok.AllArgsConstructor;
 import main.api.request.SettingsRequest;
 import main.api.response.SettingsResponse;
-import main.configuratoin.BlogConfig;
+import main.config.BlogConfig;
 import main.model.GlobalSetting;
 import main.model.repositories.GlobalSettingRepository;
 import org.springframework.beans.factory.annotation.Autowired;

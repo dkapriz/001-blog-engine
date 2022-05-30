@@ -2,6 +2,7 @@ package main.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import main.model.enums.ModerationStatusType;
 
 import javax.persistence.*;
 import java.util.Calendar;
@@ -28,7 +29,7 @@ public class Post {
     private ModerationStatusType moderationStatus;
 
     @Column(name = "moderator_id", columnDefinition = "INT")
-    private int moderatorID;
+    private Integer moderatorID;
 
     @ManyToOne
     @JoinColumn(name = "user_id", columnDefinition = "INT", nullable = false)

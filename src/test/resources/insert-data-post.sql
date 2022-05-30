@@ -7,8 +7,10 @@ INSERT INTO captcha_codes(id, code, secret_code, time)
 VALUES (10, 'xajefihiz', '4PFn62dKkbdUqGIeqOBMbr', NOW()),
 (11, 'nohuhocina', 'vfbPFX9eVuUIVdJRCwchow', NOW());
 
-INSERT INTO users(id, email, password, is_moderator, name, reg_time)
-VALUES (10, 'test@mail.ru', 'password', 1, 'Test', NOW());
+INSERT INTO users(id, email, password, is_moderator, name, reg_time) VALUES
+(10, 'test@mail.ru', '$2a$12$6L48rTqMMsOEqgIWH5VPa.2pZldL8ceTW3nHfsArUzAJu/h8imX5K', 1, 'Test', NOW()),
+(20, 'test_user@mail.ru', '$2a$12$6L48rTqMMsOEqgIWH5VPa.2pZldL8ceTW3nHfsArUzAJu/h8imX5K', 0, 'Test', NOW()),
+(30, 'test_moderator@mail.ru', '$2a$12$6L48rTqMMsOEqgIWH5VPa.2pZldL8ceTW3nHfsArUzAJu/h8imX5K', 1, 'Test', NOW());
 
 INSERT INTO posts(id, is_active, moderation_status, moderator_id, user_id, time, title, text, view_count) VALUES
 (100, 1, 'ACCEPTED', 10, 10, '2021-04-15 10:32:10.0', 'Заголовок 1',
@@ -27,9 +29,15 @@ INSERT INTO posts(id, is_active, moderation_status, moderator_id, user_id, time,
 'Текст Текст Поиск Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
 (107, 1, 'ACCEPTED', 10, 10, '2021-10-15 10:32:10.0', 'Заголовок 8 Поиск',
 'Текст Текст Поиск Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
-(108, 1, 'ACCEPTED', 10, 10, '2022-05-15 10:32:10.0', 'Заголовок 9',
+(108, 1, 'ACCEPTED', 30, 30, '2022-05-15 10:32:10.0', 'Заголовок 9',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
-(109, 1, 'ACCEPTED', 10, 10, '2022-05-15 10:32:10.0', 'Заголовок 10',
+(109, 1, 'ACCEPTED', 30, 30, '2022-05-15 10:32:10.0', 'Заголовок 10',
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+(110, 0, 'ACCEPTED', null, 20, '2022-05-15 10:32:10.0', 'Заголовок 10',
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+(111, 1, 'DECLINED', 30, 20, '2022-05-15 10:32:10.0', 'Заголовок 10',
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+(112, 1, 'NEW', null, 20, '2022-05-15 10:32:10.0', 'Заголовок 10',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0);
 
 INSERT INTO tags(id, name) VALUES

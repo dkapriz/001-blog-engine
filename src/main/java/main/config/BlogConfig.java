@@ -1,6 +1,11 @@
-package main.configuratoin;
+package main.config;
 
 import lombok.Data;
+import main.Main;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -8,6 +13,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "config")
 @Data
 public class BlogConfig {
+    public static final byte B_CRYPT_STRENGTH = 12;
+
+    public static final byte USER_MODERATOR = 1;
     public static final byte POST_LIKE = 1;
     public static final byte POST_DISLIKE = -1;
 
@@ -40,6 +48,10 @@ public class BlogConfig {
     public static final String ERROR_LONG_TEXT_POST_FRONTEND_MSG = "Текст публикации слишком длинный";
     public static final String ERROR_EMPTY_TITLE_POST_FRONTEND_MSG = "Заголовок не установлен";
     public static final String ERROR_EMPTY_TEXT_POST_FRONTEND_MSG = "Текст публикации пустой";
+
+    public static final Logger LOGGER = LogManager.getLogger(Main.class);
+    public static final Marker MARKER_BLOG_INFO = MarkerManager.getMarker("BLOG_INFO");
+    public static final Marker MARKER_UNSUCCESSFUL_REQUEST = MarkerManager.getMarker("UNSUCCESSFUL_REQUEST");
 
     private String timeZone;
     private String timeDateFormat;

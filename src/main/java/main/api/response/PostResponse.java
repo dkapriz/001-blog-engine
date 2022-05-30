@@ -17,8 +17,8 @@ public class PostResponse extends PostDTO {
     private String[] tags;
 
     public PostResponse(int id, long timeStamp, boolean active, UserDTO user, String title, String text,
-                        int likeCount, int dislikeCount, CommentPostDTO[] comments, String[] tags) {
-        super(id, timeStamp, user, title, likeCount, dislikeCount);
+                        int likeCount, int dislikeCount, int viewCount, CommentPostDTO[] comments, String[] tags) {
+        super(id, timeStamp, user, title, likeCount, dislikeCount, viewCount);
         this.active = active;
         this.text = text;
         this.comments = comments;

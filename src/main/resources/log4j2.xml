@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_FILE_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</Property>
+        <Property name="LOG_CONSOLE_PATTERN">%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</Property>
+        <Property name="APP_LOG_ROOT">logs</Property>
+    </Properties>
+    <appenders>
+        <Console name="Console" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOG_CONSOLE_PATTERN}"/>
+        </Console>
+        <RollingFile name="BlogInfo"
+                     fileName="${APP_LOG_ROOT}/BlogInfo.log"
+                     filePattern="${APP_LOG_ROOT}/BlogInfo-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_FILE_PATTERN}"/>
+            <Filters>
+                <MarkerFilter marker="BLOG_INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="100 KB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+        <RollingFile name="UnsuccessfulRequest"
+                     fileName="${APP_LOG_ROOT}/UnsuccessfulRequest.log"
+                     filePattern="${APP_LOG_ROOT}/UnsuccessfulRequest-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_FILE_PATTERN}"/>
+            <Filters>
+                <MarkerFilter marker="UNSUCCESSFUL_REQUEST" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="100 KB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+        <RollingFile name="Exceptions"
+                     fileName="${APP_LOG_ROOT}/exceptions.log"
+                     filePattern="${APP_LOG_ROOT}/exceptions-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${LOG_FILE_PATTERN}"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="100 KB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+    </appenders>
+    <loggers>
+        <Logger name="appLogger" additivity="false">
+            <AppenderRef ref="BlogInfo" level="info"/>
+            <AppenderRef ref="UnsuccessfulRequest" level="info"/>
+            <AppenderRef ref="Exceptions" level="error"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <root level="info">
+            <AppenderRef ref="BlogInfo"/>
+            <AppenderRef ref="UnsuccessfulRequest"/>
+            <AppenderRef ref="Exceptions" level="error"/>
+            <AppenderRef ref="Console"/>
+        </root>
+    </loggers>
+</Configuration>

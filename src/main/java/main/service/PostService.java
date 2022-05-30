@@ -9,18 +9,22 @@ import main.api.response.CalendarResponse;
 import main.api.response.PostListResponse;
 import main.api.response.PostResponse;
 import main.api.response.ResultResponse;
-import main.configuratoin.BlogConfig;
+import main.config.BlogConfig;
 import main.exception.IllegalParameterException;
+import main.exception.PageNotFoundException;
 import main.model.*;
+import main.model.enums.ModerationStatusType;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -28,10 +32,18 @@ import java.util.*;
 @Service
 @AllArgsConstructor
 public class PostService {
+
+    private static final String MSG_EXCEPTION_INVALID_PARAM_MODE_VALUE = "Invalid value of the 'mode' " +
+            "argument in the '/post' request";
+    private static final String MSG_EXCEPTION_INVALID_PARAM_STATUS_VALUE = "Invalid value of the 'status' " +
+            "argument in the '/moderation' request";
+
     @Autowired
     private final PostRepository postRepository;
     @Autowired
     private final TagRepository tagRepository;
+    @Autowired
+    private final UserService userService;
     @Autowired
     private final BlogConfig config;
     @Autowired
@@ -51,7 +63,7 @@ public class PostService {
             case (BlogConfig.POST_SORT_PARAMETER_NAME_BY_LIKE_DES):
                 return getPostResponse(postRepository.findAllSortByCountLikeDesc(PageRequest.of(pageOffset, limit)));
             default:
-                throw new IllegalArgumentException("Invalid value of the 'mode' argument in the 'posts' request");
+                throw new IllegalParameterException(MSG_EXCEPTION_INVALID_PARAM_MODE_VALUE);
         }
     }
 
@@ -89,12 +101,47 @@ public class PostService {
                 .of(pageOffset, limit, Sort.by("time").descending()), tagTrim));
     }
 
-    public PostResponse getPostByID(int id) {
-        Post post = postRepository.findPostByID(id);
-        if (post == null) {
-            return null;
+    public PostListResponse getPostsModeration(int offset, int limit, ModerationStatusType status) {
+        User user = userService.getLoggedUser();
+        int pageOffset = offset / limit;
+        if (status == ModerationStatusType.NEW) {
+            return getPostResponse(postRepository.findAllByModerationStatus(PageRequest
+                    .of(pageOffset, limit, Sort.by("time").descending()), status));
         }
-        incrementNumberViewPost(post);
+        if (status == ModerationStatusType.DECLINED || status == ModerationStatusType.ACCEPTED) {
+            return getPostResponse(postRepository.findAllByModerationStatusAndModerationID(PageRequest
+                    .of(pageOffset, limit, Sort.by("time").descending()), status, user.getId()));
+        }
+        throw new IllegalParameterException(MSG_EXCEPTION_INVALID_PARAM_STATUS_VALUE);
+    }
+
+    public PostListResponse getMyPosts(int offset, int limit, ModerationStatusType status) {
+        User user = userService.getLoggedUser();
+        int pageOffset = offset / limit;
+        Pageable pageable = PageRequest.of(pageOffset, limit, Sort.by("time").descending());
+        switch (status) {
+            case INACTIVE:
+                return getPostResponse(postRepository.findAllIsNotActiveByUserID(
+                        pageable, user.getId()));
+            case PENDING:
+                return getPostResponse(postRepository.findAllByModerationStatusAndUserID(
+                        pageable, ModerationStatusType.NEW, user.getId()));
+            case DECLINED:
+                return getPostResponse(postRepository.findAllByModerationStatusAndUserID(
+                        pageable, ModerationStatusType.DECLINED, user.getId()));
+            case PUBLISHED:
+                return getPostResponse(postRepository.findAllByModerationStatusAndUserID(
+                        pageable, ModerationStatusType.ACCEPTED, user.getId()));
+            default:
+                throw new IllegalParameterException(MSG_EXCEPTION_INVALID_PARAM_STATUS_VALUE);
+        }
+    }
+
+    public PostResponse getPostByID(int id, Principal principal) {
+        Post post = postRepository.findPostByIDIsActiveAndAccepted(id);
+        if (post == null) {
+            throw new PageNotFoundException("Page with id " + id + " not found");
+        }
 
         PostResponse postResponse = new PostResponse();
         long unixTime = post.getTime().getTimeInMillis() / 1000;
@@ -109,15 +156,13 @@ public class PostService {
                 .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_LIKE).count());
         postResponse.setDislikeCount((int) post.getPostVotes()
                 .stream().filter(postVote -> postVote.getValue() == BlogConfig.POST_DISLIKE).count());
+        postResponse.setViewCount(incrementNumberViewPost(post, principal));
         postResponse.setComments(getPostComments(post).toArray(CommentPostDTO[]::new));
         postResponse.setTags(post.getTags().stream().map(Tag::getName).toArray(String[]::new));
         return postResponse;
     }
 
     public ResultResponse addPost(AddPostRequest postRequest) {
-
-        // TODO: добавить проверку авторизации
-
         if (postRequest.getTitle().isEmpty()) {
             throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
                     BlogConfig.ERROR_EMPTY_TITLE_POST_FRONTEND_MSG);
@@ -143,10 +188,7 @@ public class PostService {
                     BlogConfig.ERROR_LONG_TEXT_POST_FRONTEND_MSG);
         }
 
-        // TODO: получение пользователя временно стоит заглушка
-        // TODO: добавить заполнение поля moderation_id
-        User user = new User();
-        user.setId(1);
+        User user = userService.getLoggedUser();
 
         ModerationStatusType moderationStatusType = ModerationStatusType.ACCEPTED;
         if (settingsService.getGlobalSettingByCode(BlogConfig.POST_PRE_MODERATION_FIELD_NAME)) {
@@ -154,6 +196,7 @@ public class PostService {
         }
 
         savePostToDB(postRequest, user, moderationStatusType);
+        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO,"Добавлен пост  - " + postRequest.getText());
         return new ResultResponse(true);
     }
 
@@ -195,13 +238,17 @@ public class PostService {
         return result;
     }
 
-    private void incrementNumberViewPost(Post post) {
-        //TODO: добавить проверку модератор авторизирован или автор авторизирован
-        boolean isAuth = false; //заглушка
-
-        if (!isAuth) {
-            post.setViewCount(post.getViewCount() + 1);
+    private int incrementNumberViewPost(Post post, Principal principal) {
+        int viewCount = post.getViewCount();
+        if (principal != null) {
+            User user = userService.getLoggedUser();
+            if (userService.isModerator(user) && userService.isAuthor(user, post)) {
+                return viewCount;
+            }
         }
+        post.setViewCount(++viewCount);
+        postRepository.save(post);
+        return viewCount;
     }
 
     private PostListResponse getPostResponse(Page<Post> postPage) {

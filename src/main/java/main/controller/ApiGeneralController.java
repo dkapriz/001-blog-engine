@@ -26,22 +26,22 @@ public class ApiGeneralController {
     private final PostService postService;
 
     @GetMapping("/init")
-    private InitResponse init() {
+    public InitResponse init() {
         return initResponse;
     }
 
     @GetMapping("/settings")
-    private ResponseEntity<SettingsResponse> settings() {
+    public ResponseEntity<SettingsResponse> settings() {
         return new ResponseEntity<>(settingsService.getGlobalSettings(), HttpStatus.OK);
     }
 
     @GetMapping("/tag")
-    private ResponseEntity<TagResponse> tags(@RequestParam(defaultValue = "") String query) {
+    public ResponseEntity<TagResponse> tags(@RequestParam(defaultValue = "") String query) {
         return new ResponseEntity<>(tagService.getTags(query), HttpStatus.OK);
     }
 
     @GetMapping("/calendar")
-    private ResponseEntity<CalendarResponse> calendar(@RequestParam(defaultValue = "") String year) {
+    public ResponseEntity<CalendarResponse> calendar(@RequestParam(defaultValue = "") String year) {
         return new ResponseEntity<>(postService.getCalendar(year), HttpStatus.OK);
     }
 }
