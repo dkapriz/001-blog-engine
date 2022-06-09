@@ -51,6 +51,11 @@ public class SettingsService {
         saveSetting(BlogConfig.STATISTIC_IS_PUBLIC_FIELD_NAME, settings.isStatisticsIsPublic());
     }
 
+    public boolean isAllStatistic() {
+        return globalSettingRepository.existsByCodeAndValueIgnoreCase(
+                BlogConfig.STATISTIC_IS_PUBLIC_FIELD_NAME, BlogConfig.TRUE_VALUE);
+    }
+
     private void saveSetting(String code, Boolean value) {
         GlobalSetting setting = globalSettingRepository.findByCode(code);
         if (setting == null) {

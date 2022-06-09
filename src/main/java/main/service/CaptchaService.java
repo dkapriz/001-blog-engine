@@ -5,7 +5,7 @@ import com.github.cage.GCage;
 import lombok.AllArgsConstructor;
 import main.api.response.CaptchaResponse;
 import main.config.BlogConfig;
-import main.exception.IllegalParameterException;
+import main.exception.ResultIllegalParameterException;
 import main.model.CaptchaCode;
 import main.model.repositories.CaptchaCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,22 +13,22 @@ import org.springframework.stereotype.Service;
 
 import java.awt.image.BufferedImage;
 import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
-import java.util.Calendar;
-import java.util.TimeZone;
 
 @Service
 @AllArgsConstructor
 public class CaptchaService {
-
-    private static final String SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
     @Autowired
     private final CaptchaCodeRepository captchaCodeRepository;
     @Autowired
     private final ImageService imageService;
     @Autowired
     private final BlogConfig config;
+    @Autowired
+    private final TimeService timeService;
 
     public CaptchaResponse generateCaptcha() {
         deleteExpiredCaptcha();
@@ -41,11 +41,10 @@ public class CaptchaService {
                 .imageToByte(scaledImage, config.getCaptchaFormat()));
         String encodeImageURL = config.getCaptchaURL() + ", " + encodeImage;
 
-        Calendar currentTime = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
         CaptchaCode captchaCode = new CaptchaCode();
         captchaCode.setCode(token);
         captchaCode.setSecretCode(generateSecretCode());
-        captchaCode.setTime(currentTime);
+        captchaCode.setTime(LocalDateTime.now());
 
         captchaCodeRepository.save(captchaCode);
         return new CaptchaResponse(captchaCode.getSecretCode(), encodeImageURL);
@@ -65,17 +64,18 @@ public class CaptchaService {
             }
         }
         if (!isFound) {
-            throw new IllegalParameterException(BlogConfig.ERROR_CAPTCHA_FRONTEND_NAME,
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_CAPTCHA_FRONTEND_NAME,
                     BlogConfig.ERROR_CAPTCHA_FRONTEND_MSG);
         }
     }
 
     private void deleteExpiredCaptcha() {
         Iterable<CaptchaCode> captchaCodeIterable = captchaCodeRepository.findAll();
-        Calendar currentTime = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
+        LocalDateTime nowTimeMinusCaptchaTimeLive = LocalDateTime.ofInstant(
+                Instant.ofEpochSecond(timeService.getNowTimestamp() - config.getCaptchaTimeLive()),
+                ZoneId.systemDefault());
         for (CaptchaCode captchaCode : captchaCodeIterable) {
-            long currentCaptchaTimeLive = currentTime.getTime().getTime() - captchaCode.getTime().getTime().getTime();
-            if (currentCaptchaTimeLive > config.getCaptchaTimeLive() * 1000) {
+            if (captchaCode.getTime().isBefore(nowTimeMinusCaptchaTimeLive)) {
                 captchaCodeRepository.delete(captchaCode);
             }
         }
@@ -85,7 +85,7 @@ public class CaptchaService {
         SecureRandom random = new SecureRandom();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < BlogConfig.LENGTH_CAPTCHA_SECRET_CODE; i++) {
-            sb.append(SYMBOLS.charAt(random.nextInt(SYMBOLS.length())));
+            sb.append(BlogConfig.SYMBOLS.charAt(random.nextInt(BlogConfig.SYMBOLS.length())));
         }
         return sb.toString();
     }

@@ -1,18 +1,19 @@
 INSERT INTO global_settings(id, code, name, value) VALUES
 (1, 'MULTIUSER_MODE', 'Многопользовательский режим', 'YES'),
-(2, 'POST_PREMODERATION', 'Премодерация постов', 'YES'),
+(2, 'POST_PREMODERATION', 'Премодерация постов', 'NO'),
 (3, 'STATISTICS_IS_PUBLIC', 'Показать статистику блога', 'NO');
 
-INSERT INTO captcha_codes(id, code, secret_code, time)
-VALUES (10, 'xajefihiz', '4PFn62dKkbdUqGIeqOBMbr', NOW()),
+INSERT INTO captcha_codes(id, code, secret_code, time) VALUES
+(10, 'xajefihiz', '4PFn62dKkbdUqGIeqOBMbr', NOW()),
 (11, 'nohuhocina', 'vfbPFX9eVuUIVdJRCwchow', NOW());
 
-INSERT INTO users(id, email, password, is_moderator, name, reg_time)
-VALUES (10, 'test@mail.ru', 'password', 1, 'Test', NOW());
+INSERT INTO users(id, email, password, is_moderator, name, reg_time) VALUES
+(10, 'test_user@mail.ru', '$2a$12$6L48rTqMMsOEqgIWH5VPa.2pZldL8ceTW3nHfsArUzAJu/h8imX5K', 0, 'Test', NOW()),
+(30, 'test_moderator@mail.ru', '$2a$12$6L48rTqMMsOEqgIWH5VPa.2pZldL8ceTW3nHfsArUzAJu/h8imX5K', 1, 'Test', NOW());
 
 INSERT INTO posts(id, is_active, moderation_status, moderator_id, user_id, time, title, text, view_count) VALUES
 (100, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:10:10.0', 'Заголовок поста 1',
-'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 3),
 (101, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:11:10.0', 'Заголовок поста 1',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
 (102, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:12:10.0', 'Заголовок поста 1',
@@ -20,9 +21,9 @@ INSERT INTO posts(id, is_active, moderation_status, moderator_id, user_id, time,
 (103, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:13:10.0', 'Заголовок поста 1',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
 (104, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:14:10.0', 'Заголовок поста 1',
-'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 4),
 (105, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:15:10.0', 'Заголовок поста 1',
-'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 3),
 (106, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:16:10.0', 'Заголовок поста 1',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
 (107, 1, 'ACCEPTED', 10, 10, '2021-03-15 10:17:10.0', 'Заголовок поста 1',
@@ -30,7 +31,11 @@ INSERT INTO posts(id, is_active, moderation_status, moderator_id, user_id, time,
 (108, 1, 'ACCEPTED', 10, 10, '2022-05-15 10:10:10.0', 'Заголовок поста 1',
 'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
 (109, 1, 'ACCEPTED', 10, 10, '2022-05-15 10:11:10.0', 'Заголовок поста 1',
-'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0);
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+(110, 0, 'NEW', null, 10, '2022-05-15 10:11:11.0', 'Заголовок поста 1',
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 0),
+(111, 1, 'ACCEPTED', 30, 30, '2022-05-15 10:11:10.0', 'Заголовок поста 1',
+'Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст Текст', 3);
 
 INSERT INTO tags(id, name) VALUES
 (1, 'tag_test1'),
@@ -50,3 +55,11 @@ INSERT INTO tag2post(post_id, tag_id) VALUES
 (107, 1),
 (108, 2),
 (109, 2);
+
+INSERT INTO post_votes(id, time, value, post_id, user_id) VALUES
+(100, '2022-05-15 10:10:10.0', 1, 100, 10),
+(101, '2022-05-15 10:12:10.0', 1, 101, 10),
+(102, '2022-05-15 10:10:10.0', 1, 102, 10),
+(103, '2022-05-15 10:10:10.0', -1, 103, 10),
+(104, '2022-05-15 10:10:10.0', -1, 104, 10),
+(105, '2022-05-15 10:10:10.0', -1, 111, 30);

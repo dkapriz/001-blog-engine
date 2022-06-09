@@ -3,11 +3,8 @@ package main.service;
 import lombok.AllArgsConstructor;
 import main.api.dto.TagDTO;
 import main.api.response.TagResponse;
-import main.config.BlogConfig;
 import main.exception.IllegalParameterException;
-import main.model.Post;
 import main.model.Tag;
-import main.model.enums.ModerationStatusType;
 import main.model.repositories.PostRepository;
 import main.model.repositories.TagRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +23,6 @@ public class TagService {
     private final TagRepository tagRepository;
     @Autowired
     private final PostRepository postRepository;
-    @Autowired
-    private final BlogConfig config;
 
     public TagResponse getTags(String query) {
         int postCount = getCountAcceptedPost();
@@ -65,15 +60,7 @@ public class TagService {
     }
 
     private int getCountAcceptedPost() {
-        Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
-        int postCount = 0;
-        for (Post post : postRepository.findAll()) {
-            if (post.getModerationStatus() == ModerationStatusType.ACCEPTED &&
-                    post.getTime().before(currentDate)) {
-                postCount++;
-            }
-        }
-        return postCount;
+        return postRepository.countAllActiveAndAccepted().orElse(0);
     }
 
     private List<TagDTO> tagWeightsToTagDTO(Map<String, Double> tagWeightsNormalize) {

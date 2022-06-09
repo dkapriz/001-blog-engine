@@ -1,6 +1,7 @@
 package main.model.repositories;
 
 import main.model.Post;
+import main.model.User;
 import main.model.enums.ModerationStatusType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -99,7 +101,7 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
             "AND p.time <= CURRENT_TIMESTAMP() " +
             "AND p.id = :id")
-    Post findPostByIDIsActiveAndAccepted(@Param("id") int id);
+    Optional<Post> findPostByIDIsActiveAndAccepted(@Param("id") int id);
 
     @Query(value = "SELECT p FROM Post p " +
             "LEFT JOIN User u ON u.id = p.user " +
@@ -109,17 +111,17 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "WHERE p.isActive = :isActive AND p.moderationStatus = :moderationStatus " +
             "AND p.time <= CURRENT_TIMESTAMP() " +
             "AND p.id = :id")
-    Post findPostByID(@Param("id") int id,
-                      @Param("isActive") byte isActive,
-                      @Param("moderationStatus") ModerationStatusType moderationStatus);
+    Optional<Post> findPostByID(@Param("id") int id,
+                                @Param("isActive") byte isActive,
+                                @Param("moderationStatus") ModerationStatusType moderationStatus);
 
     @Query(value = "SELECT p FROM Post p " +
             "LEFT JOIN User u ON u.id = p.user " +
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
             "AND p.time <= CURRENT_TIMESTAMP() " +
-            "AND YEAR(p.time) = YEAR(:year) " +
+            "AND YEAR(p.time) = :year " +
             "ORDER BY p.time")
-    List<Post> findAllByYear(@Param("year") Date year);
+    List<Post> findAllByYear(@Param("year") int year);
 
     @Query(value = "SELECT YEAR(p.time) FROM Post p " +
             "WHERE p.isActive = 1 AND p.moderationStatus = 'ACCEPTED' " +
@@ -132,4 +134,41 @@ public interface PostRepository extends CrudRepository<Post, Integer> {
             "WHERE p.isActive = 1 " +
             "AND p.moderationStatus != 'ACCEPTED'")
     Optional<Integer> countAllActiveAndUnModeration();
+
+    @Query(value = "SELECT COUNT(*) FROM Post p " +
+            "WHERE p.isActive = 1 " +
+            "AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP()")
+    Optional<Integer> countAllActiveAndAccepted();
+
+    @Query(value = "SELECT COUNT(*) FROM Post p " +
+            "WHERE p.isActive = 1 " +
+            "AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND p.user = :user")
+    Optional<Integer> countAllActiveAndAcceptedByUser(@Param("user") User user);
+
+    @Query(value = "SELECT SUM(p.viewCount) FROM Post p " +
+            "WHERE p.isActive = 1 " +
+            "AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP()")
+    Optional<Integer> countViewsAllPosts();
+
+    @Query(value = "SELECT SUM(p.viewCount) FROM Post p " +
+            "WHERE p.isActive = 1 " +
+            "AND p.moderationStatus = 'ACCEPTED' " +
+            "AND p.time <= CURRENT_TIMESTAMP() " +
+            "AND p.user = :user")
+    Optional<Integer> countViewsAllPostsByUser(@Param("user") User user);
+
+    @Query(nativeQuery = true, value = "SELECT time FROM posts " +
+            "WHERE is_active = 1 AND moderation_status = 'ACCEPTED' " +
+            "ORDER BY time LIMIT 1")
+    LocalDateTime getTimeFirstPost();
+
+    @Query(nativeQuery = true, value = "SELECT time FROM posts " +
+            "WHERE is_active = 1 AND moderation_status = 'ACCEPTED' " +
+            "AND user_id = :userId " +
+            "ORDER BY time LIMIT 1")
+    LocalDateTime getTimeFirstPostByUser(@Param("userId") int id);
 }

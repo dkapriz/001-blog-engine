@@ -2,12 +2,11 @@ package main.service;
 
 import lombok.AllArgsConstructor;
 import main.api.dto.UserAdvancedDTO;
-import main.api.request.AddUserRequest;
-import main.api.request.LoginRequest;
+import main.api.request.*;
 import main.api.response.ResultResponse;
 import main.api.response.UserResultResponse;
 import main.config.BlogConfig;
-import main.exception.IllegalParameterException;
+import main.exception.ResultIllegalParameterException;
 import main.model.Post;
 import main.model.User;
 import main.model.repositories.PostRepository;
@@ -19,11 +18,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import javax.mail.MessagingException;
+import java.io.IOException;
 import java.security.Principal;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.TimeZone;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -34,6 +36,10 @@ public class UserService {
     private PostRepository postRepository;
     @Autowired
     private CaptchaService captchaService;
+    @Autowired
+    private ImageService imageService;
+    @Autowired
+    private MailService mailService;
     @Autowired
     private BlogConfig config;
     @Autowired
@@ -73,17 +79,83 @@ public class UserService {
         user.setName(addUserRequest.getName());
         user.setEmail(addUserRequest.getEmail());
         user.setPassword(encodePassword(addUserRequest.getPassword()));
-        user.setRegTime(Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone())));
+        user.setRegTime(LocalDateTime.now());
         userRepository.save(user);
         BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Регистрация пользователя - " + user.getName() +
                 " - " + user.getEmail());
         return new ResultResponse(true);
     }
 
+    public ResultResponse editProfile(MultipartFile photo, ProfileRequest profileRequest) throws IOException {
+        ResultResponse resultResponse = editProfile(profileRequest);
+        User user = getLoggedUser();
+        String avatarPath = imageService.SaveResizerImage(photo, String.valueOf(user.getId()));
+        user.setPhoto(avatarPath);
+        userRepository.save(user);
+        return resultResponse;
+    }
+
+    public ResultResponse editProfile(ProfileRequest profileRequest) {
+        User user = getLoggedUser();
+
+        checkValidationName(profileRequest.getName());
+        user.setName(profileRequest.getName());
+
+        checkValidationEmail(profileRequest.getEmail());
+        if (userRepository.existsByIdAndEmailIgnoreCase(user.getId(), profileRequest.getEmail()) ||
+                !userRepository.existsByEmailIgnoreCase(profileRequest.getEmail())) {
+            user.setEmail(profileRequest.getEmail());
+        } else {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_EMAIL_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMAIL_FRONTEND_MSG_REG);
+        }
+
+        if (profileRequest.getPassword() != null) {
+            checkValidationPassword(profileRequest.getPassword());
+            user.setPassword(encodePassword(profileRequest.getPassword()));
+        }
+
+        if (profileRequest.getRemovePhoto() == config.getImageAvatarRemoveValue()) {
+            imageService.removeFile(user.getPhoto());
+            user.setPhoto("");
+        }
+
+        userRepository.save(user);
+        return new ResultResponse(true);
+    }
+
+    public ResultResponse restorePassword(PassRestoreRequest recoveryRequest) throws MessagingException {
+        if (!userRepository.existsByEmailIgnoreCase(recoveryRequest.getEmail())) {
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Попытка восстановления пароль. Email: " +
+                    recoveryRequest.getEmail() + " не найден в базе");
+            return new ResultResponse(false);
+        }
+        User user = getUserByEmail(recoveryRequest.getEmail());
+        String hash = UUID.randomUUID().toString();
+        String link = config.getMailDomainName() + config.getMailChangePasswordSubAddress() + hash;
+        String msg = config.getMailRestorePasswordMsgPartBeforeLink() + " <a href=" + link + ">ссылке</a>"
+                + config.getMailRestorePasswordMsgPartAfterLink();
+
+        user.setCode(hash);
+        userRepository.save(user);
+        mailService.send(recoveryRequest.getEmail(), config.getMailRestorePasswordSubject(), msg);
+        return new ResultResponse(true);
+    }
+
+    public ResultResponse recoveryPassword(PassRecoveryRequest passRecoveryRequest) {
+        User user = getUserByRecoveryCode(passRecoveryRequest.getCode());
+        captchaService.checkCaptchaCode(passRecoveryRequest.getCaptchaSecret(), passRecoveryRequest.getCaptcha());
+        checkValidationPassword(passRecoveryRequest.getPassword());
+        user.setPassword(encodePassword(passRecoveryRequest.getPassword()));
+        user.setCode(null);
+        userRepository.save(user);
+        return new ResultResponse(true);
+    }
+
     private void checkEmailToDB(String email) {
-        Optional<User> user = userRepository.findByEmail(email);
+        Optional<User> user = userRepository.findByEmailIgnoreCase(email);
         if (user.isPresent()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_EMAIL_FRONTEND_NAME,
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_EMAIL_FRONTEND_NAME,
                     BlogConfig.ERROR_EMAIL_FRONTEND_MSG_REG);
         }
     }
@@ -91,7 +163,7 @@ public class UserService {
     private void checkValidationEmail(String email) {
         String regexEmail = "\\w+([.-]?\\w+)*@\\w+([.-]?\\w+)*\\.\\w{2,4}";
         if (!email.matches(regexEmail)) {
-            throw new IllegalParameterException(BlogConfig.ERROR_EMAIL_FRONTEND_NAME,
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_EMAIL_FRONTEND_NAME,
                     BlogConfig.ERROR_EMAIL_FRONTEND_MSG_FORMAT);
         }
     }
@@ -99,22 +171,29 @@ public class UserService {
     private void checkValidationName(String name) {
         String regexName = "[A-Za-zА-Яа-я0-9\\s]{2,20}";
         if (!name.matches(regexName)) {
-            throw new IllegalParameterException(BlogConfig.ERROR_NAME_FRONTEND_NAME,
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_NAME_FRONTEND_NAME,
                     BlogConfig.ERROR_NAME_FRONTEND_MSG);
         }
     }
 
     private void checkValidationPassword(String password) {
         if (password.length() < config.getUserMinLengthPassword()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_PASSWORD_FRONTEND_NAME,
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_PASSWORD_FRONTEND_NAME,
                     BlogConfig.ERROR_PASSWORD_FRONTEND_MSG);
         }
     }
 
     private User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalParameterException("email",
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResultIllegalParameterException("email",
                         "Пользователь с E-mail: " + email + " не зарегистрирован"));
+    }
+
+    private User getUserByRecoveryCode(String code) {
+        return userRepository.findByCode(code).orElseThrow(() -> new ResultIllegalParameterException(
+                BlogConfig.ERROR_CODE_FRONTEND_NAME,
+                BlogConfig.ERROR_LINK_IS_OUTDATED_BEFORE + config.getMailRestorePasswordSubAddress() +
+                        BlogConfig.ERROR_LINK_IS_OUTDATED_AFTER));
     }
 
     public UserAdvancedDTO UserToUserAdvancedDTO(User user) {

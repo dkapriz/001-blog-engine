@@ -5,7 +5,7 @@ import lombok.Setter;
 import main.model.enums.Role;
 
 import javax.persistence.*;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Setter
@@ -22,7 +22,7 @@ public class User {
     private byte isModerator;
 
     @Column(name = "reg_time", columnDefinition = "DATETIME", nullable = false)
-    private Calendar regTime;
+    private LocalDateTime regTime;
 
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;

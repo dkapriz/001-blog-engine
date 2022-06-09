@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 
 @Setter
 @Getter
@@ -25,7 +25,7 @@ public class PostVote {
     private Post post;
 
     @Column(columnDefinition = "DATETIME", nullable = false)
-    private Calendar time;
+    private LocalDateTime time;
 
     @Column(columnDefinition = "TINYINT", nullable = false)
     private byte value;

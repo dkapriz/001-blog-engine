@@ -5,13 +5,13 @@ import main.api.dto.CommentPostDTO;
 import main.api.dto.PostDTO;
 import main.api.dto.UserDTO;
 import main.api.request.AddPostRequest;
-import main.api.response.CalendarResponse;
-import main.api.response.PostListResponse;
-import main.api.response.PostResponse;
-import main.api.response.ResultResponse;
+import main.api.request.CommentRequest;
+import main.api.request.ModeratePostRequest;
+import main.api.response.*;
 import main.config.BlogConfig;
+import main.exception.DataNotFoundException;
 import main.exception.IllegalParameterException;
-import main.exception.PageNotFoundException;
+import main.exception.ResultIllegalParameterException;
 import main.model.Post;
 import main.model.PostComment;
 import main.model.Tag;
@@ -27,9 +27,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import javax.naming.AuthenticationException;
 import java.security.Principal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -51,6 +54,10 @@ public class PostService {
     private final BlogConfig config;
     @Autowired
     private final SettingsService settingsService;
+    @Autowired
+    private final CommentService commentService;
+    @Autowired
+    private final TimeService timeService;
 
     public PostListResponse getPosts(int offset, int limit, String mode) {
         int pageOffset = offset / limit;
@@ -141,16 +148,15 @@ public class PostService {
     }
 
     public PostResponse getPostByID(int id, Principal principal) {
-        Post post = postRepository.findPostByIDIsActiveAndAccepted(id);
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new DataNotFoundException("Пост с id: " + id + " не найден"));
         if (post == null) {
-            throw new PageNotFoundException("Page with id " + id + " not found");
+            throw new DataNotFoundException("Запрашиваемый пост с id: " + id + " не найден");
         }
 
         PostResponse postResponse = new PostResponse();
-        long unixTime = post.getTime().getTimeInMillis() / 1000;
-
         postResponse.setId(post.getId());
-        postResponse.setTimeStamp(unixTime);
+        postResponse.setTimeStamp(timeService.getTimestampFromLocalDateTime(post.getTime()));
         postResponse.setActive(byteToBool(post.getIsActive()));
         postResponse.setUser(new UserDTO(post.getUser().getId(), post.getUser().getName()));
         postResponse.setTitle(post.getTitle());
@@ -166,31 +172,7 @@ public class PostService {
     }
 
     public ResultResponse addPost(AddPostRequest postRequest) {
-        if (postRequest.getTitle().isEmpty()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
-                    BlogConfig.ERROR_EMPTY_TITLE_POST_FRONTEND_MSG);
-        }
-        if (postRequest.getText().isEmpty()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
-                    BlogConfig.ERROR_EMPTY_TEXT_POST_FRONTEND_MSG);
-        }
-        if (postRequest.getTitle().length() < config.getPostMinLengthTitle()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
-                    BlogConfig.ERROR_SHORT_TITLE_POST_FRONTEND_MSG);
-        }
-        if (postRequest.getText().length() < config.getPostMinLengthText()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
-                    BlogConfig.ERROR_SHORT_TEXT_POST_FRONTEND_MSG);
-        }
-        if (postRequest.getTitle().length() > config.getPostMaxLengthTitle()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
-                    BlogConfig.ERROR_LONG_TITLE_POST_FRONTEND_MSG);
-        }
-        if (postRequest.getText().length() > config.getPostMaxLengthText()) {
-            throw new IllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
-                    BlogConfig.ERROR_LONG_TEXT_POST_FRONTEND_MSG);
-        }
-
+        checkPostTitleAndText(postRequest.getTitle(), postRequest.getText());
         User user = userService.getLoggedUser();
 
         ModerationStatusType moderationStatusType = ModerationStatusType.ACCEPTED;
@@ -203,18 +185,40 @@ public class PostService {
         return new ResultResponse(true);
     }
 
-    public CalendarResponse getCalendar(String year) {
-        Calendar searchYear = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
-        if (!year.trim().isEmpty()) {
-            searchYear.set(Calendar.YEAR, Integer.parseInt(year));
+    public ResultResponse changePost(int id, AddPostRequest postRequest) throws AuthenticationException {
+        Post post = postRepository.findById(id).orElseThrow(() ->
+                new DataNotFoundException("Запрашиваемый пост с id: " + id + " не найден"));
+        User user = userService.getLoggedUser();
+        checkPostTitleAndText(postRequest.getTitle(), postRequest.getText());
+        if (userService.isModerator(user)) {
+            post.setModeratorID(user.getId());
+        } else {
+            if (post.getUser().getId() != user.getId()) {
+                throw new AuthenticationException("Пользовватель с id " + user.getId() +
+                        " не является создателем поста с id " + post.getId());
+            }
+            post.setModerationStatus(ModerationStatusType.NEW);
         }
-        String[] allYearsPost = postRepository.findAllYearValue();
-        List<Post> postBySearchYear = postRepository.findAllByYear(searchYear.getTime());
+        post.setIsActive(postRequest.getActive());
+        post.setTime(timeService.checkDateCreationPost(postRequest.getTimeStamp()));
+        post.setTitle(postRequest.getTitle());
+        post.setText(postRequest.getText());
+        addTagsToPost(post, postRequest.getTags());
+        postRepository.save(post);
+        BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Пост с id " + post.getId() +
+                " изменен пользователем с id " + user.getId());
+        return new ResultResponse(true);
+    }
 
-        SimpleDateFormat formatDate = new SimpleDateFormat(config.getTimeDateFormat());
+    public CalendarResponse getCalendar(String year) {
+        int requestYear = year.isEmpty() ? LocalDateTime.now().getYear() : Integer.parseInt(year);
+        String[] allYearsPost = postRepository.findAllYearValue();
+        List<Post> postBySearchYear = postRepository.findAllByYear(requestYear);
+
+        DateTimeFormatter formatDate = DateTimeFormatter.ofPattern(config.getTimeDateFormat());
         Map<String, Integer> dateCount = new HashMap<>();
         for (Post post : postBySearchYear) {
-            String postDate = formatDate.format(post.getTime().getTime());
+            String postDate = post.getTime().format(formatDate);
             if (dateCount.containsKey(postDate)) {
                 dateCount.put(postDate, dateCount.get(postDate) + 1);
                 continue;
@@ -229,13 +233,11 @@ public class PostService {
         List<PostComment> postCommentList = post.getPostComments();
         for (PostComment postComment : postCommentList) {
             CommentPostDTO postCommentDTO = new CommentPostDTO();
-            long unixTime = postComment.getTime().getTimeInMillis() / 1000;
-
             postCommentDTO.setId(postComment.getId());
             postCommentDTO.setText(postComment.getText());
             postCommentDTO.setUser(new UserDTO(postComment.getUser().getId(),
                     postComment.getUser().getName(), postComment.getUser().getPhoto()));
-            postCommentDTO.setTimeStamp(unixTime);
+            postCommentDTO.setTimeStamp(timeService.getTimestampFromLocalDateTime(postComment.getTime()));
             result.add(postCommentDTO);
         }
         return result;
@@ -245,7 +247,7 @@ public class PostService {
         int viewCount = post.getViewCount();
         if (principal != null) {
             User user = userService.getLoggedUser();
-            if (userService.isModerator(user) && userService.isAuthor(user, post)) {
+            if (userService.isModerator(user) || userService.isAuthor(user, post)) {
                 return viewCount;
             }
         }
@@ -262,10 +264,8 @@ public class PostService {
 
     public PostDTO postToPostDTO(Post post) {
         PostDTO postDTO = new PostDTO();
-        long unixTime = post.getTime().getTimeInMillis() / 1000;
-
         postDTO.setId(post.getId());
-        postDTO.setTimeStamp(unixTime);
+        postDTO.setTimeStamp(timeService.getTimestampFromLocalDateTime(post.getTime()));
         postDTO.setUser(new UserDTO(post.getUser().getId(), post.getUser().getName()));
         postDTO.setTitle(post.getTitle());
         postDTO.setAnnounce(getAnnounceFromText(post.getText()));
@@ -278,14 +278,70 @@ public class PostService {
         return postDTO;
     }
 
-    private Calendar checkDateCreationPost(long time) {
-        Calendar postCreationDate = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
-        Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone(config.getTimeZone()));
-        postCreationDate.setTimeInMillis(time);
-        if (postCreationDate.before(currentDate)) {
-            return currentDate;
+    public IDResponse addComment(CommentRequest commentRequest) {
+        checkPostComment(commentRequest.getText());
+        Post post = postRepository.findPostByIDIsActiveAndAccepted(commentRequest.getPostId())
+                .orElseThrow(() -> new IllegalParameterException("ID поста указан не верно"));
+        User user = userService.getLoggedUser();
+        PostComment currentComment = new PostComment();
+        PostComment parentComment;
+        if (commentRequest.getParentId() != 0) {
+            parentComment = commentService.getCommentByID(commentRequest.getParentId());
+            currentComment.setParent(parentComment);
         }
-        return postCreationDate;
+        currentComment.setPost(post);
+        currentComment.setUser(user);
+        currentComment.setText(commentRequest.getText());
+        currentComment.setTime(LocalDateTime.now());
+        commentService.saveComment(currentComment);
+        return new IDResponse(currentComment.getId());
+    }
+
+    public ResultResponse moderate(ModeratePostRequest moderatePostRequest) {
+        User user = userService.getLoggedUser();
+        Post post = postRepository.findById(moderatePostRequest.getPostId())
+                .orElseThrow(() -> new IllegalParameterException("ID поста указан не верно"));
+        post.setModeratorID(user.getId());
+        post.setModerationStatus(getModerationStatus(moderatePostRequest.getDecision()));
+        postRepository.save(post);
+        if (post.getModerationStatus().equals(ModerationStatusType.ACCEPTED)) {
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Пост с id " + post.getId() +
+                    " принят модератором с id " + user.getId());
+        }
+        if (post.getModerationStatus().equals(ModerationStatusType.DECLINED)) {
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_BLOG_INFO, "Пост с id " + post.getId() +
+                    " отклонен модератором с id " + user.getId());
+        }
+        return new ResultResponse(true);
+    }
+
+    public int countPostsByUser(User user) {
+        return postRepository.countAllActiveAndAcceptedByUser(user).orElse(0);
+    }
+
+    public int countAllPosts() {
+        return postRepository.countAllActiveAndAccepted().orElse(0);
+    }
+
+    public int countViewPostsByUser(User user) {
+        return postRepository.countViewsAllPostsByUser(user).orElse(0);
+    }
+
+    public int countViewAllPosts() {
+        return postRepository.countViewsAllPosts().orElse(0);
+    }
+
+    public LocalDateTime getTimeFirstPostByUser(User user) {
+        return postRepository.getTimeFirstPostByUser(user.getId());
+    }
+
+    public LocalDateTime getTimeFirstPost() {
+        return postRepository.getTimeFirstPost();
+    }
+
+    public Post getActiveAndAcceptedById(int postID) {
+        return postRepository.findPostByIDIsActiveAndAccepted(postID).orElseThrow(
+                () -> new IllegalParameterException("ID поста указан не верно"));
     }
 
     private void savePostToDB(AddPostRequest postRequest, User user, ModerationStatusType moderationStatusType) {
@@ -293,7 +349,7 @@ public class PostService {
         post.setIsActive(postRequest.getActive());
         post.setModerationStatus(moderationStatusType);
         post.setUser(user);
-        post.setTime(checkDateCreationPost(postRequest.getTimeStamp()));
+        post.setTime(timeService.checkDateCreationPost(postRequest.getTimeStamp()));
         post.setTitle(postRequest.getTitle());
         post.setText(postRequest.getText());
         post.setViewCount(0);
@@ -329,5 +385,57 @@ public class PostService {
 
     private boolean byteToBool(byte value) {
         return value == 1;
+    }
+
+    private void checkPostTitleAndText(String title, String text) {
+        if (title.isEmpty()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMPTY_TITLE_POST_FRONTEND_MSG);
+        }
+        if (text.isEmpty()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMPTY_TEXT_POST_FRONTEND_MSG);
+        }
+        if (title.length() < config.getPostMinLengthTitle()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_SHORT_TITLE_POST_FRONTEND_MSG);
+        }
+        if (removeHTMLTegFromText(text).length() < config.getPostMinLengthText()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_SHORT_TEXT_POST_FRONTEND_MSG);
+        }
+        if (title.length() > config.getPostMaxLengthTitle()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TITLE_FRONTEND_NAME,
+                    BlogConfig.ERROR_LONG_TITLE_POST_FRONTEND_MSG);
+        }
+        if (text.length() > config.getPostMaxLengthText()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_LONG_TEXT_POST_FRONTEND_MSG);
+        }
+    }
+
+    private void checkPostComment(String text) {
+        if (text.isEmpty()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_EMPTY_TEXT_POST_COMMENT_FRONTEND_MSG);
+        }
+        if (removeHTMLTegFromText(text).length() < config.getPostCommentMinLength()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_SHORT_TEXT_POST_COMMENT_FRONTEND_MSG);
+        }
+        if (text.length() > config.getPostCommentMaxLength()) {
+            throw new ResultIllegalParameterException(BlogConfig.ERROR_TEXT_FRONTEND_NAME,
+                    BlogConfig.ERROR_LONG_TEXT_POST_COMMENT_FRONTEND_MSG);
+        }
+    }
+
+    private ModerationStatusType getModerationStatus(String status) {
+        switch (status) {
+            case BlogConfig.POST_MODERATION_STATUS_ACCEPT:
+                return ModerationStatusType.ACCEPTED;
+            case BlogConfig.POST_MODERATION_STATUS_DECLINE:
+                return ModerationStatusType.DECLINED;
+        }
+        throw new ResultIllegalParameterException(BlogConfig.ERROR_MODERATION_DECISION_MSG);
     }
 }

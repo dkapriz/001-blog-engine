@@ -2,16 +2,19 @@ package main.controller;
 
 import lombok.AllArgsConstructor;
 import main.api.request.AddPostRequest;
+import main.api.request.VoteRequest;
 import main.api.response.PostListResponse;
 import main.api.response.PostResponse;
 import main.api.response.ResultResponse;
 import main.model.enums.ModerationStatusType;
 import main.service.PostService;
+import main.service.VoteService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.naming.AuthenticationException;
 import java.security.Principal;
 import java.text.ParseException;
 
@@ -21,6 +24,7 @@ import java.text.ParseException;
 public class ApiPostController {
 
     private final PostService postService;
+    private final VoteService voteService;
 
     @GetMapping()
     public ResponseEntity<PostListResponse> posts(
@@ -81,5 +85,24 @@ public class ApiPostController {
     @PreAuthorize("hasAuthority('user:write')")
     public ResponseEntity<ResultResponse> addPost(@RequestBody AddPostRequest addPostRequest) {
         return new ResponseEntity<>(postService.addPost(addPostRequest), HttpStatus.OK);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('user:write')")
+    public ResponseEntity<ResultResponse> changePost(@PathVariable int id, @RequestBody AddPostRequest addPostRequest)
+            throws AuthenticationException {
+        return new ResponseEntity<>(postService.changePost(id, addPostRequest), HttpStatus.OK);
+    }
+
+    @PostMapping("/like")
+    @PreAuthorize("hasAuthority('user:write')")
+    public ResponseEntity<ResultResponse> like(@RequestBody VoteRequest voteRequest) {
+        return new ResponseEntity<>(voteService.likePost(voteRequest), HttpStatus.OK);
+    }
+
+    @PostMapping("/dislike")
+    @PreAuthorize("hasAuthority('user:write')")
+    public ResponseEntity<ResultResponse> dislike(@RequestBody VoteRequest voteRequest) {
+        return new ResponseEntity<>(voteService.dislikePost(voteRequest), HttpStatus.OK);
     }
 }

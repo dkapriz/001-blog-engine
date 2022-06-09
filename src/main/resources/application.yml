@@ -1,10 +1,24 @@
-## SQL SERVER
+server.port: ${PORT:8080}
+
+## SPRING
 spring.jpa.hibernate.ddl-auto: update
 spring.jpa.show-sql: true
-spring.datasource.url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/blog-engin?useSSL=false
-spring.datasource.username: root
-spring.datasource.password: test001
-spring.jpa.properties.hibernate.jdbc.time_zone: UTC
+spring.datasource.url: jdbc:${BEGET_DATABASE_URL:mysql://dkaprikm.beget.tech:3306}
+spring.datasource.username: dkaprikm_deploy
+spring.datasource.password: SnowbaLL1216731
+##spring.jpa.properties.hibernate.jdbc.time_zone: UTC
+spring.servlet.multipart.max-file-size: -1
+spring.servlet.multipart.max-request-size: -1
+
+## SPRING MAIL
+spring.mail.protocol: smtps
+spring.mail.host: smtp.mail.ru
+spring.mail.port: 465
+spring.mail.username: pochtalion2023@mail.ru
+spring.mail.password: 082dRR6ikaDCD3w2pjky
+spring.mail.properties.mail.smtp.auth: true
+spring.mail.properties.mail.smtp.ssl.enable: true
+mail.debug: false
 
 ## BLOG PARAMETERS
 blog.title: DevPub
@@ -22,7 +36,6 @@ config.captcha-format: png
 config.captcha-url: data:image/png;base64
 
 ## TIME
-config.time-zone: UTC
 config.time-date-format: yyyy-MM-dd
 
 ## USER
@@ -35,3 +48,28 @@ config.post-max-length-title: 500
 config.post-max-length-text: 600000
 config.post-max-length-announce: 150
 
+## POST COMMENT
+config.post-comment-min-length: 1
+config.post-comment-max-length: 1000
+
+## IMAGE
+config.image-max-size: 1 # IN MB
+config.image-format: jpg, png
+config.image-path: upload
+config.image-count-sub-folders: 3
+config.image-count-char-in-folder-name: 2
+config.image-count-char-in-file-name: 15
+config.image-prefix-file-name: IMG
+config.image-avatar-format: png
+config.image-avatar-size: 36 #px
+config.image-avatar-folder-name: usava
+config.image-avatar-remove-value: 1
+
+## MAIL
+config.mail-from-user-name: pochtalion2023@mail.ru #Не должен содержать пробелы и элементы управления
+config.mail-domain-name: http://localhost:8080
+config.mail-change-password-sub-address: /login/change-password/
+config.mail-restore-password-sub-address: /login/restore-password
+config.mail-restore-password-subject: Восстановление пароля
+config.mail-restore-password-msg-part-before-link: Письмо восстановления пароля сгенерировано автоматически.<br>Для восстановления перейдите по
+config.mail-restore-password-msg-part-after-link: .<br>Пожалуйста не отвечайте на письмо

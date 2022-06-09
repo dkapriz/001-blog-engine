@@ -3,6 +3,8 @@ package main.controller;
 import lombok.AllArgsConstructor;
 import main.api.request.AddUserRequest;
 import main.api.request.LoginRequest;
+import main.api.request.PassRecoveryRequest;
+import main.api.request.PassRestoreRequest;
 import main.api.response.CaptchaResponse;
 import main.api.response.ResultResponse;
 import main.service.CaptchaService;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.mail.MessagingException;
 import java.security.Principal;
 
 @RestController
@@ -40,6 +43,17 @@ public class ApiAuthController {
     @PostMapping("/login")
     public ResponseEntity<ResultResponse> login(@RequestBody LoginRequest loginRequest) {
         return new ResponseEntity<>(userService.login(loginRequest), HttpStatus.OK);
+    }
+
+    @PostMapping("/restore")
+    public ResponseEntity<ResultResponse> restore(@RequestBody PassRestoreRequest passRestoreRequest)
+            throws MessagingException {
+        return new ResponseEntity<>(userService.restorePassword(passRestoreRequest), HttpStatus.OK);
+    }
+
+    @PostMapping("/password")
+    public ResponseEntity<ResultResponse> password(@RequestBody PassRecoveryRequest passRecoveryRequest) {
+        return new ResponseEntity<>(userService.recoveryPassword(passRecoveryRequest), HttpStatus.OK);
     }
 
     @GetMapping("/logout")

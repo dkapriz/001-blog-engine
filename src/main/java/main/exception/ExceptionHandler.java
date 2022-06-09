@@ -12,14 +12,20 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.util.WebUtils;
 
+import javax.mail.MessagingException;
+import java.io.IOException;
+
 @ControllerAdvice
 public class ExceptionHandler {
 
     @org.springframework.web.bind.annotation.ExceptionHandler({
             UsernameNotFoundException.class,
             AuthenticationException.class,
+            ResultIllegalParameterException.class,
             IllegalParameterException.class,
-            PageNotFoundException.class
+            DataNotFoundException.class,
+            IOException.class,
+            MessagingException.class
     })
     public final ResponseEntity<ResultResponse> handleException(Exception ex, WebRequest request) {
         HttpHeaders httpHeaders = new HttpHeaders();
@@ -38,18 +44,39 @@ public class ExceptionHandler {
             return handleAuthenticationException(authenticationException, httpHeaders, httpStatus, request);
         }
 
-        if (ex instanceof IllegalParameterException) {
+        if (ex instanceof ResultIllegalParameterException) {
             HttpStatus httpStatus = HttpStatus.OK;
+            ResultIllegalParameterException resultIllegalParameterException = (ResultIllegalParameterException) ex;
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_UNSUCCESSFUL_REQUEST, ex.getMessage());
+            return handleResultIllegalParameterException(resultIllegalParameterException, httpHeaders, httpStatus, request);
+        }
+
+        if (ex instanceof IllegalParameterException) {
+            HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
             IllegalParameterException illegalParameterException = (IllegalParameterException) ex;
             BlogConfig.LOGGER.info(BlogConfig.MARKER_UNSUCCESSFUL_REQUEST, ex.getMessage());
             return handleIllegalParameterException(illegalParameterException, httpHeaders, httpStatus, request);
         }
 
-        if (ex instanceof PageNotFoundException) {
+        if (ex instanceof DataNotFoundException) {
             HttpStatus httpStatus = HttpStatus.NOT_FOUND;
-            PageNotFoundException pageNotFoundException = (PageNotFoundException) ex;
+            DataNotFoundException dataNotFoundException = (DataNotFoundException) ex;
             BlogConfig.LOGGER.info(BlogConfig.MARKER_UNSUCCESSFUL_REQUEST, ex.getMessage());
-            return handlePageNotFoundException(pageNotFoundException, httpHeaders, httpStatus, request);
+            return handleDataNotFoundException(dataNotFoundException, httpHeaders, httpStatus, request);
+        }
+
+        if (ex instanceof IOException) {
+            HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+            IOException ioException = (IOException) ex;
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_UNSUCCESSFUL_REQUEST, ex.getMessage());
+            return handleIOException(ioException, httpHeaders, httpStatus, request);
+        }
+
+        if (ex instanceof MessagingException) {
+            HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+            MessagingException messagingException = (MessagingException) ex;
+            BlogConfig.LOGGER.info(BlogConfig.MARKER_UNSUCCESSFUL_REQUEST, ex.getMessage());
+            return handleMessagingException(messagingException, httpHeaders, httpStatus, request);
         }
 
         HttpStatus httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -68,13 +95,28 @@ public class ExceptionHandler {
         return handleExceptionInternal(ex, new ErrorDTO(false, ex.getMessage()), headers, status, request);
     }
 
-    private ResponseEntity<ResultResponse> handlePageNotFoundException
-            (PageNotFoundException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+    private ResponseEntity<ResultResponse> handleIllegalParameterException
+            (IllegalParameterException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+        return handleExceptionInternal(ex, new ResultResponse(ex.getMessage()), headers, status, request);
+    }
+
+    private ResponseEntity<ResultResponse> handleDataNotFoundException
+            (DataNotFoundException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
         return handleExceptionInternal(ex, new ErrorDTO(false, ex.getMessage()), headers, status, request);
     }
 
-    protected ResponseEntity<ResultResponse> handleIllegalParameterException
-            (IllegalParameterException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+    private ResponseEntity<ResultResponse> handleIOException
+            (IOException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+        return handleExceptionInternal(ex, new ErrorDTO(false, ex.getMessage()), headers, status, request);
+    }
+
+    private ResponseEntity<ResultResponse> handleMessagingException
+            (MessagingException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+        return handleExceptionInternal(ex, new ErrorDTO(false, ex.getMessage()), headers, status, request);
+    }
+
+    protected ResponseEntity<ResultResponse> handleResultIllegalParameterException
+            (ResultIllegalParameterException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
         return handleExceptionInternal(ex, new ErrorDTO(false, ex.getType(), ex.getMessage()),
                 headers, status, request);
     }
@@ -82,7 +124,7 @@ public class ExceptionHandler {
     protected ResponseEntity<ResultResponse> handleExceptionInternal
             (Exception ex, ResultResponse body, HttpHeaders headers, HttpStatus status, WebRequest request) {
         if (HttpStatus.INTERNAL_SERVER_ERROR.equals(status)) {
-            request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, WebRequest.SCOPE_REQUEST);
+            request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex.getMessage(), WebRequest.SCOPE_REQUEST);
         }
         ex.printStackTrace();
         return new ResponseEntity<>(body, headers, status);

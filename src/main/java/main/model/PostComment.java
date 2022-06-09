@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 
 @Setter
 @Getter
@@ -29,7 +29,7 @@ public class PostComment {
     private User user;
 
     @Column(columnDefinition = "DATETIME", nullable = false)
-    private Calendar time;
+    private LocalDateTime time;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String text;

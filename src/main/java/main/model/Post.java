@@ -5,7 +5,7 @@ import lombok.Setter;
 import main.model.enums.ModerationStatusType;
 
 import javax.persistence.*;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,7 +36,7 @@ public class Post {
     private User user;
 
     @Column(columnDefinition = "DATETIME", nullable = false)
-    private Calendar time;
+    private LocalDateTime time;
 
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String title;
