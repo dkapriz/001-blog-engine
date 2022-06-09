@@ -1,21 +1,20 @@
-server.port: ${PORT:8080}
-
 ## SPRING
 spring.jpa.hibernate.ddl-auto: update
 spring.jpa.show-sql: true
-spring.datasource.url: jdbc:${BEGET_DATABASE_URL:mysql://dkaprikm.beget.tech:3306}
-spring.datasource.username: dkaprikm_deploy
-spring.datasource.password: SnowbaLL123456
+spring.datasource.url: jdbc:${BEGET_DATABASE_URL:mysql://localhost:3306/med-blog-engine}
+spring.datasource.username: ${BEGET_LOGIN}
+spring.datasource.password: ${BEGET_PASSWORD}
 ##spring.jpa.properties.hibernate.jdbc.time_zone: UTC
 spring.servlet.multipart.max-file-size: -1
 spring.servlet.multipart.max-request-size: -1
+server.port: ${PORT:8080}
 
 ## SPRING MAIL
 spring.mail.protocol: smtps
 spring.mail.host: smtp.mail.ru
 spring.mail.port: 465
-spring.mail.username: pochtalion2023@mail.ru
-spring.mail.password: 082dRR6ikaDCD3w2pjky
+spring.mail.username: ${EMAIL}
+spring.mail.password: ${EMAIL_PASSWORD}
 spring.mail.properties.mail.smtp.auth: true
 spring.mail.properties.mail.smtp.ssl.enable: true
 mail.debug: false
