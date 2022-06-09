@@ -20,11 +20,11 @@ spring.mail.properties.mail.smtp.ssl.enable: true
 mail.debug: false
 
 ## BLOG PARAMETERS
-blog.title: DevPub
-blog.subtitle: Заметки разработчика
-blog.phone: +7 (906) 764-73-71
-blog.email: dkapriz@mail.ru
-blog.copyright: Дмитрий Каприз
+blog.title: История и Медицина
+blog.subtitle: Мой сборник статей
+blog.phone: +7 (906) 777-66-66
+blog.email: xxxxxxxx@mail.ru
+blog.copyright: Дмитрий К.
 blog.copyrightFrom: 2022
 
 ## GENERATOR CAPTCHA
